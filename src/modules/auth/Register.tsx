@@ -118,120 +118,143 @@ export const Register = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center text-primary mb-2">
-            <span className="material-symbols-outlined !text-5xl">group_work</span>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl w-full space-y-8">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">
+            Create Account
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            Enter your details below to activate your account. You will receive verification instructions via email.
+          </p>
         </div>
-        <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">
-          Activate Employee Account
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Enter the Employee ID provided by HR to set up your access.
-        </p>
-      </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
             
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-400 p-4">
+              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
                 <div className="flex">
                   <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
+                    <p className="text-sm text-red-700 font-medium">{error}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div>
-              <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700">
-                Employee ID
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                 <input
-                  {...register('employeeId')}
-                  type="text"
-                  className="input-field uppercase"
-                  placeholder="e.g. OIJODO20240001"
-                />
+            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
+              {/* Employee ID */}
+              <div>
+                <label htmlFor="employeeId" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Employee ID
+                </label>
+                <div className="relative rounded-md shadow-sm">
+                   <input
+                    {...register('employeeId')}
+                    type="text"
+                    className="block w-full rounded-lg border-gray-300 border px-4 py-3 focus:border-primary focus:ring-primary sm:text-sm outline-none transition-all placeholder-gray-400"
+                    placeholder="e.g. EMP-00123"
+                  />
+                </div>
+                {errors.employeeId && <p className="text-xs text-red-500 mt-1">{errors.employeeId.message}</p>}
               </div>
-              {errors.employeeId && <p className="error-text">{errors.employeeId.message}</p>}
+
+              {/* Email Address */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Email Address
+                </label>
+                <div className="relative rounded-md shadow-sm">
+                  <input
+                    {...register('email')}
+                    type="email"
+                    className="block w-full rounded-lg border-gray-300 border px-4 py-3 focus:border-primary focus:ring-primary sm:text-sm outline-none transition-all placeholder-gray-400"
+                    placeholder="name@company.com"
+                  />
+                </div>
+                {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Official / Personal Email
-              </label>
-              <div className="mt-1">
-                <input
-                  {...register('email')}
-                  type="email"
-                  className="input-field"
-                  placeholder="you@example.com"
-                />
+            {/* Note: Access Role section skipped as requested */}
+
+            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2 pt-2">
+              {/* Password */}
+              <div>
+                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative rounded-md shadow-sm">
+                  <input
+                    {...register('password')}
+                    type="password"
+                    className="block w-full rounded-lg border-gray-300 border px-4 py-3 focus:border-primary focus:ring-primary sm:text-sm outline-none transition-all placeholder-gray-900 tracking-widest"
+                    placeholder="••••••••"
+                  />
+                </div>
+                {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
+                
+                {/* Password Requirements Hint */}
+                <div className="mt-3 space-y-1">
+                    <p className="text-xs font-medium text-primary mb-1">Password requirements:</p>
+                    <ul className="text-xs text-gray-500 list-disc pl-4 space-y-0.5">
+                        <li>Minimum 8 characters</li>
+                        <li>At least one special character (!@#$)</li>
+                        <li>At least one number</li>
+                    </ul>
+                </div>
               </div>
-              {errors.email && <p className="error-text">{errors.email.message}</p>}
+
+              {/* Confirm Password */}
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-1">
+                  Confirm Password
+                </label>
+                <div className="relative rounded-md shadow-sm">
+                  <input
+                    {...register('confirmPassword')}
+                    type="password"
+                    className="block w-full rounded-lg border-gray-300 border px-4 py-3 focus:border-primary focus:ring-primary sm:text-sm outline-none transition-all placeholder-gray-900 tracking-widest"
+                    placeholder="••••••••"
+                  />
+                </div>
+                {errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword.message}</p>}
+                <p className="text-xs text-gray-400 mt-2">Both passwords must match.</p>
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Create Password
-              </label>
-              <div className="mt-1">
-                <input
-                  {...register('password')}
-                  type="password"
-                  className="input-field"
-                />
+            {/* Email Verification Info Box */}
+            <div className="rounded-lg bg-blue-50 p-4 border border-blue-100 flex gap-3 items-start mt-6">
+              <div className="flex-shrink-0">
+                <span className="material-symbols-outlined text-primary">mail</span>
               </div>
-              {errors.password && <p className="error-text">{errors.password.message}</p>}
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Email verification is required</h3>
+                <div className="mt-1 text-sm text-gray-600">
+                  <p>
+                    A confirmation link will be sent to the email address provided. The account will remain inactive until the email is verified by you.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <div className="mt-1">
-                <input
-                  {...register('confirmPassword')}
-                  type="password"
-                  className="input-field"
-                />
-              </div>
-              {errors.confirmPassword && <p className="error-text">{errors.confirmPassword.message}</p>}
-            </div>
-
-            <div>
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100 mt-8">
+              <Link 
+                to="/login"
+                className="px-4 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-200 transition-colors"
+              >
+                Cancel
+              </Link>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-2.5 text-sm font-bold text-white bg-primary rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                {loading ? 'Activating...' : 'Activate Account'}
+                {loading ? 'Creating...' : 'Create Account'}
               </button>
             </div>
           </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Already activated?
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-6 text-center">
-               <Link to="/login" className="font-medium text-primary hover:text-blue-500">
-                 Sign in to your account
-               </Link>
-            </div>
-          </div>
         </div>
       </div>
     </div>
