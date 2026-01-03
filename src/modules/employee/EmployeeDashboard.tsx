@@ -398,7 +398,7 @@ export const EmployeeDashboard: React.FC = () => {
             <AttendanceHistory employeeId={profile?.id || ''} />
           ) : view === 'payroll' ? (
             <PayrollPage
-              initialWage={50000 * 12}
+              initialWage={profile?.ctc || 50000 * 12}
               allowEdit={false}
               employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
               employeeId={profile?.id || '---'}
@@ -519,6 +519,7 @@ export const EmployeeDashboard: React.FC = () => {
                             <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px]">Type</th>
                             <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px]">Dates</th>
                             <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px]">Status</th>
+                            <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px]">Note</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -531,10 +532,13 @@ export const EmployeeDashboard: React.FC = () => {
                                   {req.status}
                                 </span>
                               </td>
+                              <td className="px-6 py-4 text-slate-500 max-w-xs truncate" title={req.adminComments || ''}>
+                                {req.adminComments || '---'}
+                              </td>
                             </tr>
                           ))}
                           {requests.length === 0 && (
-                            <tr><td colSpan={3} className="p-12 text-center text-slate-400 font-medium">No active requests found</td></tr>
+                            <tr><td colSpan={4} className="p-12 text-center text-slate-400 font-medium">No active requests found</td></tr>
                           )}
                         </tbody>
                       </table>
