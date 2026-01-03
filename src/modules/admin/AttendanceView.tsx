@@ -270,7 +270,12 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ employees, atten
                                             {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
                                         </td>
                                         <td className="p-4 text-sm text-gray-600">
-                                            8h 30m {/* Mock calc */}
+                                            {record.checkIn && record.checkOut ? (() => {
+                                                const diff = new Date(record.checkOut).getTime() - new Date(record.checkIn).getTime();
+                                                const hours = Math.floor(diff / (1000 * 60 * 60));
+                                                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                                return `${hours}h ${mins}m`;
+                                            })() : '--'}
                                         </td>
                                         <td className="p-4">
                                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(record.status)} border-transparent`}>

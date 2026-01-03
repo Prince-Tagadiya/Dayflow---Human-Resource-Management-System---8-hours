@@ -22,7 +22,7 @@ export const EmployeeService = {
   getProfileByUid: async (uid: string) => {
     try {
       const q = query(
-        collection(db, 'employees'), 
+        collection(db, 'employees'),
         where('uid', '==', uid),
         limit(1)
       );
@@ -93,7 +93,7 @@ export const EmployeeService = {
         casual: 12,
         sick: 10,
         privilege: 20,
-        unpaid: 0 // Unpaid has no limit usually, or tracked differently
+        unpaid: 0
       };
 
       // 2. Fetch ALL approved requests for this user
@@ -116,12 +116,9 @@ export const EmployeeService = {
       requests.forEach(req => {
         const start = new Date(req.startDate);
         const end = new Date(req.endDate);
-        // Simple day diff + 1. 
-        // NOTE: Does not account for weekends/holidays in this simple version, 
-        // but sufficient for now as per "make this real".
         const diffTime = Math.abs(end.getTime() - start.getTime());
-        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
-        
+        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
         if (req.type in taken) {
           taken[req.type as keyof typeof taken] += days;
         }
@@ -134,15 +131,101 @@ export const EmployeeService = {
         privilege: { taken: taken.privilege, total: entitlements.privilege },
         unpaid: { taken: taken.unpaid, total: 0 }
       };
-
     } catch (error) {
-       console.error("Error calculating balances:", error);
-       return {
-          casual: { taken: 0, total: 12 },
-          sick: { taken: 0, total: 10 },
-          privilege: { taken: 0, total: 20 },
-          unpaid: { taken: 0, total: 0 }
-       };
+      console.error("Error calculating balances:", error);
+      return {
+        casual: { taken: 0, total: 12 },
+        sick: { taken: 0, total: 10 },
+        privilege: { taken: 0, total: 20 },
+        unpaid: { taken: 0, total: 0 }
+      };
+    }
+  },
+
+  // NEW: Real Attendance Tracking
+  clockIn: async (employeeId: string, customTime?: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      let checkInTime = new Date().toISOString();
+
+      if (customTime) {
+        const [hours, minutes] = customTime.split(':');
+        const d = new Date();
+        d.setHours(parseInt(hours));
+        d.setMinutes(parseInt(minutes));
+        d.setSeconds(0);
+        checkInTime = d.toISOString();
+      }
+
+      const docRef = await addDoc(collection(db, 'attendance'), {
+        employeeId,
+        date: today,
+        checkIn: checkInTime,
+        checkOut: null,
+        status: 'present',
+        isLocked: false,
+        createdAt: new Date().toISOString()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error("Error clocking in:", error);
+      throw error;
+    }
+  },
+
+  clockOut: async (attendanceId: string, customTime?: string) => {
+    try {
+      let checkOutTime = new Date().toISOString();
+
+      if (customTime) {
+        const [hours, minutes] = customTime.split(':');
+        const d = new Date();
+        d.setHours(parseInt(hours));
+        d.setMinutes(parseInt(minutes));
+        d.setSeconds(0);
+        checkOutTime = d.toISOString();
+      }
+
+      const { updateDoc, doc: fsDoc } = await import('firebase/firestore');
+      const ref = fsDoc(db, 'attendance', attendanceId);
+      await updateDoc(ref, {
+        checkOut: checkOutTime,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error clocking out:", error);
+      throw error;
+    }
+  },
+
+  getTodayAttendance: async (employeeId: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '==', today),
+        orderBy('checkIn', 'desc'),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as AttendanceRecord;
+      }
+      return null;
+    } catch (error) {
+      // If index doesn't exist, fallback to non-ordered
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '==', today),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as AttendanceRecord;
+      }
+      return null;
     }
   }
 };
