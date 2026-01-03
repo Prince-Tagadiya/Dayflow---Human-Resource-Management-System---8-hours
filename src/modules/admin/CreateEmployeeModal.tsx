@@ -158,6 +158,12 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                 </div>
 
                 <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Annual CTC (₹)</label>
+                  <input {...register('ctc', { valueAsNumber: true })} type="number" placeholder="e.g. 600000" className="input-field" />
+                  {errors.ctc && <p className="error-text">{errors.ctc.message}</p>}
+                </div>
+
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Year of Joining</label>
                   <input {...register('yearOfJoining', { valueAsNumber: true })} type="number" className="input-field" />
                   {errors.yearOfJoining && <p className="error-text">{errors.yearOfJoining.message}</p>}

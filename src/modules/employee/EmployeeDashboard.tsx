@@ -394,7 +394,7 @@ export const EmployeeDashboard: React.FC = () => {
             <AttendanceHistory employeeId={profile?.id || ''} />
           ) : view === 'payroll' ? (
             <PayrollPage
-              initialWage={50000 * 12}
+              initialWage={profile?.ctc || 50000 * 12}
               allowEdit={false}
               employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
               employeeId={profile?.id || '---'}
