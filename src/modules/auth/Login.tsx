@@ -20,13 +20,38 @@ export const Login: React.FC = () => {
     try {
       setError(null);
       setLoading(true);
-      await AuthService.login(data.loginId, data.password);
+      const user = await AuthService.login(data.loginId, data.password);
       
-      // Explicitly check role (optional but good for debugging) or just let the Guard handle it.
-      // Force navigation to root - the App.tsx redirects based on role.
-      // We will perform a hard redirect to force fresh state if needed, but navigate should work.
-      console.log("Login successful, navigating...");
-      navigate('/dashboard/hr'); // Try forcing to HR dashboard first, RoleGuard will kick back if wrong
+      // Dynamic Redirect based on Role
+      // We need to know if they are Admin or Employee to send them to the right route.
+      // Since Claims might delay, let's peek at Firestore quickly.
+      
+      try {
+          const { doc, getDoc } = await import('firebase/firestore');
+          const { db } = await import('../../firebase/firebase');
+          
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+              const role = userDoc.data().role;
+              console.log("Login Redirect: Found role", role);
+              
+              if (role === 'admin') {
+                  navigate('/dashboard/hr');
+              } else if (role === 'employee') {
+                  navigate('/dashboard/employee');
+              } else {
+                  console.warn("Unknown role, going to root");
+                  navigate('/');
+              }
+          } else {
+               // Fallback
+               navigate('/');
+          }
+      } catch (e) {
+          console.error("Redirect logic error", e);
+          navigate('/');
+      }
+
     } catch (err: any) {
       console.error("Login Error details:", err);
       // Firebase auth errors are specific

@@ -39,8 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setClaims(tokenResult.claims);
         setRole(userRole);
         
-        // --- REAL TIME ROLE LISTENER (Robustness) ---
-        // If the claim isn't there, let's look at the Firestore Document
         if (!userRole) {
              try {
                 // Using standard imports from firebase/firestore which should be available
@@ -62,13 +60,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                  console.error("AuthContext/Firestore Error: Failed to fetch user role.", err);
              }
         }
+        setLoading(false); // CRITICAL: Only set loading=false AFTER the role fetch is done
 
       } else {
         setUser(null);
         setClaims({});
         setRole(null);
+        setLoading(false); // Only define loading false here if no user
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
