@@ -21,7 +21,7 @@ export const EmployeeDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // View State for Navigation
-  const [view, setView] = useState<'dashboard' | 'apply-leave' | 'profile' | 'payroll'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'apply-leave' | 'profile' | 'payroll' | 'attendance'>('dashboard');
 
   // Data State
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
@@ -83,7 +83,7 @@ export const EmployeeDashboard: React.FC = () => {
     const timer = setInterval(() => {
       if (status === 'clocked-out') {
         const now = new Date();
-        setDisplayTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+        setDisplayTime(now.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
       }
     }, 1000);
     return () => clearInterval(timer);
@@ -106,7 +106,7 @@ export const EmployeeDashboard: React.FC = () => {
     try {
       await EmployeeService.clockIn(profile.id, date.toISOString());
       setStatus('clocked-in');
-      setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+      setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
     } catch (e) {
       console.error("Clock in failed", e);
     }
@@ -124,7 +124,7 @@ export const EmployeeDashboard: React.FC = () => {
     try {
       await EmployeeService.clockOut(profile.id, date.toISOString());
       setStatus('clocked-out');
-      setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+      setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
     } catch (e) {
       console.error("Clock out failed", e);
     }
@@ -167,10 +167,10 @@ export const EmployeeDashboard: React.FC = () => {
               <User size={20} />
               <span className="text-sm font-medium">Profile</span>
             </button>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <Clock size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Attendance</span>
-            </a>
+            <button onClick={() => setView('attendance')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'attendance' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <Clock size={20} className={view === 'attendance' ? '' : "group-hover:text-blue-600 transition-colors"} />
+              <span className="text-sm font-medium">Attendance</span>
+            </button>
             <button onClick={() => setView('apply-leave')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'apply-leave' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
               <Calendar size={20} className={view === 'apply-leave' ? '' : "group-hover:text-blue-600 transition-colors"} />
               <span className="text-sm font-medium">Leaves</span>
@@ -260,7 +260,64 @@ export const EmployeeDashboard: React.FC = () => {
 
         {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
-          {view === 'payroll' ? (
+          {view === 'attendance' ? (
+             <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">Attendance History</h2>
+                  <p className="text-sm text-slate-500 mt-1">View your check-in and check-out times.</p>
+                </div>
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check In</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check Out</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-200">
+                            {attendance.length > 0 ? attendance.map((record) => {
+                                const checkIn = record.checkIn ? new Date(record.checkIn) : null;
+                                const checkOut = record.checkOut ? new Date(record.checkOut) : null;
+                                let duration = '---';
+                                if (checkIn && checkOut) {
+                                  const diff = checkOut.getTime() - checkIn.getTime();
+                                  const hours = Math.floor(diff / 3600000);
+                                  const mins = Math.floor((diff % 3600000) / 60000);
+                                  duration = `${hours}h ${mins}m`;
+                                }
+                                return (
+                                <tr key={record.id} className="hover:bg-slate-50/50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                                      {new Date(record.date).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {record.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                        {checkIn ? checkIn.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '---'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                                        {checkOut ? checkOut.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '---'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
+                                        {duration}
+                                    </td>
+                                </tr>
+                            )}) : (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">No attendance records found.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+             </div>
+          ) : view === 'payroll' ? (
              <PayrollPage 
                 initialWage={50000 * 12} 
                 allowEdit={false} 
