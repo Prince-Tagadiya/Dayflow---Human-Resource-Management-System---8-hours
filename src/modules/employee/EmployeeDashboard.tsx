@@ -296,13 +296,25 @@ export const EmployeeDashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 sm:gap-6">
-            <div className="relative hidden sm:block">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <input
-                className="h-9 w-64 rounded-full border border-slate-200 bg-slate-50 pl-9 pr-4 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Search..."
-                type="text"
-              />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClockIn}
+                disabled={status === 'clocked-in'}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${status === 'clocked-in' ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 ring-1 ring-emerald-600/20'}`}
+              >
+                <Clock size={16} />
+                <span className="hidden md:inline">Clock In</span>
+                <span className="md:hidden">In</span>
+              </button>
+              <button
+                onClick={handleClockOut}
+                disabled={status === 'clocked-out'}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${status === 'clocked-out' ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-rose-50 text-rose-700 hover:bg-rose-100 ring-1 ring-rose-600/20'}`}
+              >
+                <LogOut size={16} />
+                <span className="hidden md:inline">Clock Out</span>
+                <span className="md:hidden">Out</span>
+              </button>
             </div>
             <div className="flex items-center gap-2">
               <button className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
@@ -357,13 +369,13 @@ export const EmployeeDashboard: React.FC = () => {
                       // Determine Status Display
                       let statusLabel = record.status;
                       let statusColor = record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-                      
+
                       if (checkIn) {
                         const shiftStart = new Date(checkIn);
                         shiftStart.setHours(9, 15, 0, 0); // 9:15 AM Threshold
                         if (checkIn > shiftStart) {
-                            statusLabel = 'late';
-                            statusColor = 'bg-amber-100 text-amber-800';
+                          statusLabel = 'late';
+                          statusColor = 'bg-amber-100 text-amber-800';
                         }
                       }
 
@@ -478,28 +490,13 @@ export const EmployeeDashboard: React.FC = () => {
                             className="block w-full sm:w-60 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
                           />
                           <p className="text-[10px] text-slate-400 mt-1">
-                            {status === 'clocked-out' ? "Select time and click 'Clock In'" : "Select time and click 'Clock Out'"}
+                            {status === 'clocked-out' ? "Select time and click 'Clock In' in the header" : "Select time and click 'Clock Out' in the header"}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-6 flex gap-3">
-                      <button
-                        onClick={handleClockIn}
-                        disabled={status === 'clocked-in'}
-                        className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${status === 'clocked-in' ? 'bg-emerald-50 text-emerald-600 opacity-50 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
-                      >
-                        Clock In
-                      </button>
-                      <button
-                        onClick={handleClockOut}
-                        disabled={status === 'clocked-out'}
-                        className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${status === 'clocked-out' ? 'bg-rose-50 text-rose-600 opacity-50 cursor-not-allowed' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}`}
-                      >
-                        Clock Out
-                      </button>
-                    </div>
+
                   </div>
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
