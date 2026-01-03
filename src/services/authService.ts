@@ -10,7 +10,17 @@ const SYSTEM_EMAIL_DOMAIN = 'dayflow.app';
 export const AuthService = {
   login: async (loginId: string, password: string) => {
     // Ensure loginId is treated as email if it's not already
-    const email = loginId.includes('@') ? loginId : `${loginId}@${SYSTEM_EMAIL_DOMAIN}`;
+    // Force uppercase ID to be supported if user typed it, but email auth is case insensitive? 
+    // Actually, create was likely using exactly what was generated.
+    // Let's assume the ID part is case-insensitive for user comfort, but we should match generation.
+    // Generated ID is e.g. ODJODO20240001
+    
+    let email = loginId;
+    if (!loginId.includes('@')) {
+        // If it's a raw ID, map to system domain
+        email = `${loginId}@${SYSTEM_EMAIL_DOMAIN}`;
+    }
+    
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;

@@ -1,44 +1,114 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from '../firebase/firebase';
+import { initializeApp, getApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFirestore, doc, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import type { CreateEmployeeFormData } from '../types/forms';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { db } from '../firebase/firebase';
 
-// Client-side helper to simulate ID generation if Cloud Functions are not available (Demo Mode)
-// In production, this logic MUST be in the Cloud Function to avoid race conditions.
+// Helper to generate correct ID format
 const generateLoginId = async (firstName: string, lastName: string, year: number) => {
     const companyCode = 'OI'; // Odoo India
     const f2 = firstName.substring(0, 2).toUpperCase();
     const l2 = lastName.substring(0, 2).toUpperCase();
     const prefix = `${companyCode}${f2}${l2}${year}`;
     
-    // Check last serial for this prefix pattern (Simulated)
-    // Real implementation: Firestore Counter or Transaction
-    // Demo implementation: Random for safety if no DB access, but let's try to query
+    // ATOMIC Transaction to ensure unique Serial Number
+    // Uses a counter document in Firestore
+    const loginId = await runTransaction(db, async (transaction) => {
+        const counterRef = doc(db, 'counters', `employee_serial_${year}`);
+        const counterDoc = await transaction.get(counterRef);
+        
+        let currentSerial = 1;
+        if (counterDoc.exists()) {
+            currentSerial = counterDoc.data().current + 1;
+        }
+        
+        transaction.set(counterRef, { current: currentSerial }, { merge: true });
+        
+        // Pad with zeros to 4 digits (e.g. 0001)
+        const serialStr = currentSerial.toString().padStart(4, '0');
+        return `${prefix}${serialStr}`;
+    });
     
-    // For this assignment, we will use a random 4 digit number to avoid collisions without transactions
-    const randomSerial = Math.floor(1000 + Math.random() * 9000); 
-    return `${prefix}${randomSerial}`;
+    return loginId;
 };
 
 export const AdminService = {
   createEmployee: async (data: CreateEmployeeFormData) => {
-    const functions = getFunctions();
+    // 1. Generate the Custom ID first
+    const loginId = await generateLoginId(data.firstName, data.lastName, data.yearOfJoining);
     
+    // 2. Generate Random Temp Password
+    const tempPassword = Math.random().toString(36).slice(-8) + "1!"; // Ensuring complexity if needed
+    
+    // 3. Create User in Firebase Auth WITHOUT logging out current Admin
+    // TRICK: Initialize a "secondary" Firebase App instance just for this action
+    const firebaseConfig = {
+        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    };
+    
+    const secondaryAppName = `secondaryApp-${Date.now()}`;
+    const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+    const secondaryAuth = getAuth(secondaryApp);
+    
+    // CRITICAL FIX: Create Auth User with SYSTEM EMAIL (LoginID@dayflow.app)
+    // This allows the user to login with their ID (e.g. OIJODO2024001) which maps to this email.
+    const systemEmail = `${loginId}@dayflow.app`;
+
     try {
-      // 1. Try Cloud Function first (Best Practice)
-      const createEmployeeFn = httpsCallable(functions, 'createEmployee');
-      const result = await createEmployeeFn(data);
-      return result.data as { loginId: string; tempPass: string };
+        // Create the user on the secondary app
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, systemEmail, tempPassword);
+        const newUser = userCredential.user;
+        
+        console.log("Created Auth User:", newUser.uid);
+
+        // 4. Create Firestore Profile (Using main DB connection which has Admin privileges)
+
+        // Store explicit role 'employee' here since we can't set customClaims easily without Admin SDK
+        
+        // Employee Profile
+        await setDoc(doc(db, 'employees', loginId), {
+            id: loginId,
+            uid: newUser.uid,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            department: data.department,
+            designation: data.designation,
+            yearOfJoining: data.yearOfJoining,
+            phoneNumber: data.phoneNumber,
+            companyCode: data.companyCode,
+            dateOfJoining: new Date().toISOString(),
+            isActive: true,
+            role: 'employee',
+            isFirstLogin: true // Flag to force password change
+        });
+        
+        // User Mapping (Critical for RoleGuard)
+        await setDoc(doc(db, 'users', newUser.uid), {
+            uid: newUser.uid,
+            email: data.email,
+            role: 'employee',
+            employeeId: loginId,
+            displayName: `${data.firstName} ${data.lastName}`
+        });
+
+        // 5. Cleanup
+        await signOut(secondaryAuth);
+        await deleteApp(secondaryApp);
+        
+        return { loginId, tempPass: tempPassword };
+
     } catch (error: any) {
-        console.warn("Cloud function failed (likely not deployed). Falling back to DEMO mode (Client-side generation).", error);
+        console.error("Creation Failed:", error);
+        // Ensure app is cleaned up even on error
+        await deleteApp(secondaryApp).catch(() => {});
         
-        // --- FALLBACK DEMO MODE (For strict Requirement delivery without backend deployment) ---
-        // Validate Admin locally? Firestore rules will enforce writing permissions anyway.
-        // We cannot create a Firebase Auth User from Client SDK without logging out.
-        // STOPPER: We strictly cannot create a new user without logging out.
-        
-        // Solution: specific instruction to User or Mocking the return
-        throw new Error("Cloud Function 'createEmployee' is required to create secure accounts. Please deploy functions.");
+        if (error.code === 'auth/email-already-in-use') {
+            throw new Error('This email is already registered.');
+        }
+        throw new Error(error.message || 'Failed to create employee');
     }
   }
 };

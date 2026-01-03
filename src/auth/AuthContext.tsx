@@ -33,18 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         let userRole = (tokenResult.claims.role as UserRole) || null;
         
-        // Fallback: Check Firestore if no claim (For manual seeding/demo support)
-        if (!userRole) {
-            try {
-                // Dynamically import to avoid circular dep issues if any, though imports are top level here usually.
-                // Using simple fetch logic or just assume role is null until claims sync?
-                // Better: Read the 'users' doc.
-                const { doc, getDoc, getFirestore } = await import('firebase/firestore');
-                // We use the exported db but here we can just use getFirestore(app) or similar if needed, 
-                // but let's use the 'db' from firebase.ts via import.
-                // Wait, importing 'db' from firebase.ts is fine.
-            } catch (e) { console.warn("Role fetch error", e); }
-        }
+
 
         setUser(firebaseUser);
         setClaims(tokenResult.claims);
@@ -53,14 +42,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // --- REAL TIME ROLE LISTENER (Robustness) ---
         // If the claim isn't there, let's look at the Firestore Document
         if (!userRole) {
-             const { doc, getDoc } = await import('firebase/firestore');
-             const { db } = await import('../firebase/firebase');
-             const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-             if (userDoc.exists()) {
-                 const userData = userDoc.data();
-                 if (userData.role) {
-                     setRole(userData.role as UserRole);
-                 }
+             try {
+                // Using standard imports from firebase/firestore which should be available
+                // We need to import db from the module scope to be safe or use getFirestore()
+                const { doc, getDoc } = await import('firebase/firestore');
+                const { db } = await import('../firebase/firebase');
+                
+                const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    if (userData.role) {
+                        setRole(userData.role as UserRole);
+                    }
+                }
+             } catch (err) {
+                 console.error("Failed to fetch user role from Firestore", err);
              }
         }
 
