@@ -53,9 +53,26 @@ export const EmployeeDashboard: React.FC = () => {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
   };
 
-  const [checkInTime, setCheckInTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(9, 0, 0, 0))));
-  const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(18, 0, 0, 0))));
+  const [checkInTime, setCheckInTime] = useState<string>(getLocalISOString(new Date()));
+  const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date()));
+  const [isManualTime, setIsManualTime] = useState(false);
   const [displayTime, setDisplayTime] = useState<string>('---');
+
+  // Keep simulation times synced with real-time unless manually edited
+  useEffect(() => {
+    if (isManualTime) return;
+
+    const syncInterval = setInterval(() => {
+      const now = new Date();
+      if (status === 'clocked-out') {
+        setCheckInTime(getLocalISOString(now));
+      } else {
+        setCheckOutTime(getLocalISOString(now));
+      }
+    }, 1000);
+
+    return () => clearInterval(syncInterval);
+  }, [isManualTime, status]);
 
   // Summary Modal State
   const [summaryModal, setSummaryModal] = useState<{
@@ -462,7 +479,10 @@ export const EmployeeDashboard: React.FC = () => {
                           <input
                             type="datetime-local"
                             value={status === 'clocked-out' ? checkInTime : checkOutTime}
-                            onChange={(e) => status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value)}
+                            onChange={(e) => {
+                              setIsManualTime(true);
+                              status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value);
+                            }}
                             className="block w-full sm:w-64 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
                           />
                           <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wide font-bold">
