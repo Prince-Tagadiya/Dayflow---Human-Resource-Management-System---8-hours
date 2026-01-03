@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate, Link } from 'react-router-dom';
-import { Loader2, Lock, User } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Loader2, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { loginSchema, type LoginFormData } from '../../types/forms';
-
 
 export const Login: React.FC = () => {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
@@ -13,6 +12,7 @@ export const Login: React.FC = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
 
@@ -20,12 +20,18 @@ export const Login: React.FC = () => {
     try {
       setError(null);
       setLoading(true);
+
       const user = await AuthService.login(data.loginId, data.password);
 
-      // Dynamic Redirect based on Role
-      // We need to know if they are Admin or Employee to send them to the right route.
-      // Since Claims might delay, let's peek at Firestore quickly.
+      // Strict Email Verification Check
+      if (!user.emailVerified) {
+        if (user.email !== 'hr@dayflow.app') {
+          await AuthService.logout();
+          throw new Error("Email not verified. Please check your inbox or spam folder.");
+        }
+      }
 
+      // Dynamic Redirect based on Role
       try {
         const { doc, getDoc } = await import('firebase/firestore');
         const { db } = await import('../../firebase/firebase');
@@ -33,32 +39,27 @@ export const Login: React.FC = () => {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const role = userDoc.data().role;
-          console.log("Login Redirect: Found role", role);
-
-          if (role === 'admin') {
-            navigate('/dashboard/hr');
-          } else if (role === 'employee') {
-            navigate('/dashboard/employee');
-          } else {
-            console.warn("Unknown role, going to root");
-            navigate('/');
-          }
+          if (role === 'admin') navigate('/dashboard/hr');
+          else if (role === 'employee') navigate('/dashboard/employee');
+          else navigate('/');
         } else {
-          // Fallback
           navigate('/');
         }
       } catch (e) {
-        console.error("Redirect logic error", e);
         navigate('/');
       }
 
     } catch (err: any) {
       console.error("Login Error details:", err);
-      // Firebase auth errors are specific
       let msg = 'Invalid credentials';
-      if (err.code === 'auth/user-not-found') msg = 'User not found';
-      if (err.code === 'auth/wrong-password') msg = 'Invalid password';
-      if (err.code === 'auth/network-request-failed') msg = 'Network error - Check your connection';
+      // Preserve specific errors like "Email not verified"
+      if (err.message && err.message.includes("verified")) {
+        msg = err.message;
+      } else {
+        if (err.code === 'auth/user-not-found') msg = 'User not found';
+        if (err.code === 'auth/wrong-password') msg = 'Invalid password';
+        if (err.code === 'auth/too-many-requests') msg = 'Too many failed attempts. Try again later.';
+      }
 
       setError(msg);
     } finally {
@@ -66,72 +67,129 @@ export const Login: React.FC = () => {
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 space-y-6">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 mb-4">
-            <User size={24} />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Sign In</h1>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex justify-center text-primary mb-2">
+          <span className="material-symbols-outlined !text-5xl">group_work</span>
+        </div>
+        <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900">
+          Sign in to your account
+        </h2>
+        <div className="mt-2 text-center">
           <p className="text-gray-500 text-sm">Welcome back to Dayflow</p>
         </div>
+      </div>
 
-        <div className="mb-6 text-center">
-          <Link to="/activate" className="text-sm font-medium text-blue-600 hover:underline">
-            First time login? Activate your account here
-          </Link>
-        </div>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Login ID / Email</label>
-            <div className="relative">
-              <input
-                {...register('loginId')}
-                type="text"
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="e.g. OIJODO2024001"
-              />
-              <User className="absolute left-3 top-2.5 text-gray-400" size={18} />
-            </div>
-            {errors.loginId && <p className="text-xs text-red-500">{errors.loginId.message}</p>}
+          <div className="mb-6 text-center">
+            <Link to="/activate" className="text-sm font-medium text-blue-600 hover:underline">
+              First time login? Activate your account here
+            </Link>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Password</label>
-            <div className="relative">
-              <input
-                {...register('password')}
-                type="password"
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                placeholder="Enter your password"
-              />
-              <Lock className="absolute left-3 top-2.5 text-gray-400" size={18} />
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {error && (
+              <div className={`p-4 mb-4 rounded-md border-l-4 ${error.includes('verified') ? 'bg-yellow-50 border-yellow-400 text-yellow-700' : 'bg-red-50 border-red-400 text-red-700'}`}>
+                <div className="flex">
+                  <div className="ml-3">
+                    <p className="text-sm">{error}</p>
+                    {error.includes('verified') && (
+                      <p className="text-xs mt-1">Check your spam folder if you don't see the email.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Login ID / Email</label>
+              <div className="relative">
+                <User className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Employee ID or Email"
+                  {...register('loginId')}
+                  className="pl-10 input-field w-full rounded-lg border-gray-300 border py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+              {errors.loginId && (
+                <p className="text-sm text-red-500">{errors.loginId.message}</p>
+              )}
             </div>
-            {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  {...register('password')}
+                  className="pl-10 pr-10 input-field w-full rounded-lg border-gray-300 border py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="text-sm text-red-500">{errors.password.message}</p>
+              )}
+              <div className="flex justify-end pt-1">
+                <Link to="/forgot-password" className="text-xs font-medium text-primary hover:text-blue-500">
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 bg-primary text-white rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Signing in...</span>
+                </div>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={async () => {
+                const id = prompt("Enter Admin ID:", "admin");
+                const pass = prompt("Enter Password:", "admin123");
+                if (id && pass) {
+                  try {
+                    await AuthService.register(id, pass);
+                    alert("Admin created! You can now login.");
+                  } catch (e: any) {
+                    alert("Failed: " + e.message);
+                  }
+                }
+              }}
+              className="text-xs text-blue-500 hover:underline w-full text-center block"
+            >
+              (Dev Only) Create Account
+            </button>
           </div>
 
-          {error && (
-            <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">
-              {error}
-            </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center"
-          >
-            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Sign In'}
-          </button>
-        </form>
-
-        <div className="pt-4 text-center">
-          <p className="text-xs text-gray-400">
-            Authorized Personnel Only. <br />Contact HR for account access.
-          </p>
         </div>
       </div>
     </div>

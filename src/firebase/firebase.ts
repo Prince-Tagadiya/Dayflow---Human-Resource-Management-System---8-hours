@@ -23,6 +23,11 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const functions = getFunctions(app);
 export const storage = getStorage(app);
-export const analytics = getAnalytics(app);
+export let analytics;
+try {
+  analytics = getAnalytics(app);
+} catch (e) {
+  console.warn("Firebase Analytics failed to initialize", e);
+}
 
 export default app;

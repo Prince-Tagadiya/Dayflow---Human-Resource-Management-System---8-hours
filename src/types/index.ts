@@ -21,7 +21,8 @@ export interface EmployeeProfile {
   department: string;
   dateOfJoining: string; // ISO Date
   isActive: boolean;
-  
+  companyCode?: string; // Custom Employee Code
+
   // Explicitly excluding salary data from this shared interface
 }
 
@@ -44,7 +45,7 @@ export interface AttendanceRecord {
   date: string; // YYYY-MM-DD
   checkIn: string | null; // ISO Timestamp
   checkOut: string | null; // ISO Timestamp
-  status: 'present' | 'absent' | 'half-day' | 'on-leave';
+  status: 'present' | 'absent' | 'half-day' | 'on-leave' | 'late';
   isLocked: boolean; // Locked after payroll generation
 }
 

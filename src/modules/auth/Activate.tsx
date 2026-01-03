@@ -124,8 +124,14 @@ export const Activate = () => {
             We've sent a verification link to <strong>{watch('email')}</strong>.<br/>
             Please verify your email to complete the activation process.
           </p>
-          <div className="bg-blue-50 p-4 rounded-lg mb-6 text-sm text-blue-800">
-             Once verified, you can log in with your new password.
+          <div className="bg-yellow-50 p-4 rounded-lg mb-6 text-sm text-yellow-800 text-left">
+            <div className="flex gap-2">
+                <span className="material-symbols-outlined text-yellow-600 text-lg">info</span>
+                <div>
+                    <strong>Can't find it?</strong><br/>
+                    Check your spam/junk folder. It may take a few minutes to arrive.
+                </div>
+            </div>
           </div>
           <Link to="/login" className="inline-block w-full py-3 px-4 bg-primary text-white font-bold rounded-lg hover:bg-blue-600 transition-colors shadow-md">
             Go to Login
