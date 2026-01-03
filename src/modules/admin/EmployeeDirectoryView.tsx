@@ -1,22 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Plus, Filter } from 'lucide-react';
-import type { EmployeeProfile } from '../../types';
+import type { EmployeeProfile, AttendanceRecord } from '../../types';
 
 interface EmployeeDirectoryViewProps {
     employees: EmployeeProfile[];
+    attendance?: AttendanceRecord[]; // Optional for now to avoid breaking parent before update
     onAddEmployee: () => void;
 }
 
-export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ employees, onAddEmployee }) => {
+export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ employees, attendance = [], onAddEmployee }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'all' | 'present' | 'on_leave' | 'absent'>('all');
 
-    // Mock calculations for stats - in a real app these typically come from backend or computed from full list
-    const stats = {
-        all: employees.length,
-        present: employees.filter(e => e.isActive).length, // simplified proxy
-        onLeave: 0,
-        absent: 0
+    // Helper to get status for an employee
+    const getEmployeeStatus = (empId: string): 'present' | 'on_leave' | 'absent' => {
+        if (!attendance.length) return 'absent'; // Default if no data
+        const record = attendance.find(a => a.employeeId === empId);
+        if (!record) return 'absent';
+
+        if (record.status === 'present' || record.status === 'late' || record.status === 'half-day') return 'present';
+        if (record.status === 'on-leave') return 'on_leave';
+        return 'absent';
     };
+
+    // Calculate stats content
+    const stats = useMemo(() => {
+        const statuses = employees.map(e => getEmployeeStatus(e.id));
+        return {
+            all: employees.length,
+            present: statuses.filter(s => s === 'present').length,
+            onLeave: statuses.filter(s => s === 'on_leave').length,
+            absent: statuses.filter(s => s === 'absent').length
+        };
+    }, [employees, attendance]);
 
     const getInitials = (firstName: string, lastName: string) => {
         return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -30,7 +46,16 @@ export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ em
             emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (emp.designation && emp.designation.toLowerCase().includes(searchTerm.toLowerCase()));
 
-        return matchesSearch;
+        if (!matchesSearch) return false;
+
+        if (activeTab === 'all') return true;
+
+        const status = getEmployeeStatus(emp.id);
+        if (activeTab === 'present') return status === 'present';
+        if (activeTab === 'on_leave') return status === 'on_leave';
+        if (activeTab === 'absent') return status === 'absent';
+
+        return true;
     });
 
     return (
@@ -65,16 +90,28 @@ export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ em
             {/* Filter Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-slate-200">
                 <div className="flex items-center gap-6 text-sm">
-                    <button className="font-medium text-slate-900 border-b-2 border-blue-600 pb-2.5 -mb-2.5 transition-colors">
+                    <button
+                        onClick={() => setActiveTab('all')}
+                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'all' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
                         All <span className="ml-1 text-slate-400 font-normal">{stats.all}</span>
                     </button>
-                    <button className="font-medium text-slate-500 hover:text-slate-700 pb-2.5 -mb-2.5 transition-colors">
+                    <button
+                        onClick={() => setActiveTab('present')}
+                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'present' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
                         Present <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{stats.present}</span>
                     </button>
-                    <button className="font-medium text-slate-500 hover:text-slate-700 pb-2.5 -mb-2.5 transition-colors">
+                    <button
+                        onClick={() => setActiveTab('on_leave')}
+                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'on_leave' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
                         On Leave <span className="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{stats.onLeave}</span>
                     </button>
-                    <button className="font-medium text-slate-500 hover:text-slate-700 pb-2.5 -mb-2.5 transition-colors">
+                    <button
+                        onClick={() => setActiveTab('absent')}
+                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'absent' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
                         Absent <span className="ml-1 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">{stats.absent}</span>
                     </button>
                 </div>
@@ -87,38 +124,53 @@ export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ em
 
             {/* Grid of Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredEmployees.map((emp) => (
-                    <div key={emp.id} className="group relative bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-lg hover:border-blue-500/30 transition-all duration-300 cursor-pointer">
-                        {/* Status Indicator (Mocked based on Active/Inactive for now) */}
-                        <div className="absolute top-4 right-4" title={emp.isActive ? "Active" : "Inactive"}>
-                            <span className={`flex h-3 w-3 rounded-full ${emp.isActive ? 'bg-green-500' : 'bg-gray-300'} ring-4 ${emp.isActive ? 'ring-green-500/20' : 'ring-gray-300/20'}`}></span>
-                        </div>
+                {filteredEmployees.map((emp) => {
+                    const status = getEmployeeStatus(emp.id);
+                    // Determine styling based on status
+                    let statusColor = 'bg-yellow-400 ring-4 ring-yellow-400/20'; // Absent/Default
+                    let statusTitle = 'Absent';
 
-                        {/* Avatar */}
-                        <div className="mb-4">
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 ring-4 ring-slate-50 flex items-center justify-center text-blue-700 text-2xl font-bold shadow-inner">
-                                {getInitials(emp.firstName, emp.lastName)}
+                    if (status === 'present') {
+                        statusColor = 'bg-green-500 ring-4 ring-green-500/20';
+                        statusTitle = 'Present';
+                    } else if (status === 'on_leave') {
+                        statusColor = 'bg-purple-500 ring-4 ring-purple-500/20';
+                        statusTitle = 'On Leave';
+                    }
+
+                    return (
+                        <div key={emp.id} className="group relative bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-lg hover:border-blue-500/30 transition-all duration-300 cursor-pointer">
+                            {/* Status Indicator */}
+                            <div className="absolute top-4 right-4" title={statusTitle}>
+                                <span className={`flex h-3 w-3 rounded-full ${statusColor}`}></span>
+                            </div>
+
+                            {/* Avatar */}
+                            <div className="mb-4">
+                                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 ring-4 ring-slate-50 flex items-center justify-center text-blue-700 text-2xl font-bold shadow-inner">
+                                    {getInitials(emp.firstName, emp.lastName)}
+                                </div>
+                            </div>
+
+                            {/* Info */}
+                            <h3 className="text-lg font-bold text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">
+                                {emp.firstName} {emp.lastName}
+                            </h3>
+                            <p className="text-sm text-slate-500 font-medium mb-3">
+                                {emp.designation || 'No Designation'}
+                            </p>
+
+                            {/* Department Badge */}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+                                {emp.department || 'General'}
+                            </span>
+
+                            {/* Additional Info / Actions */}
+                            <div className="mt-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 pt-2">
                             </div>
                         </div>
-
-                        {/* Info */}
-                        <h3 className="text-lg font-bold text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">
-                            {emp.firstName} {emp.lastName}
-                        </h3>
-                        <p className="text-sm text-slate-500 font-medium mb-3">
-                            {emp.designation || 'No Designation'}
-                        </p>
-
-                        {/* Department Badge */}
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
-                            {emp.department || 'General'}
-                        </span>
-
-                        {/* Additional Info / Actions */}
-                        <div className="mt-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-4 pt-2">
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
 
                 {/* Empty State */}
                 {filteredEmployees.length === 0 && (

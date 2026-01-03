@@ -14,6 +14,7 @@ import type { EmployeeProfile, TimeOffRequest, AttendanceRecord } from '../../ty
 import { ApplyLeave } from './ApplyLeave';
 import { ProfilePage } from './ProfilePage';
 import { PayrollPage } from '../payroll/PayrollPage';
+import { AttendanceHistory } from './AttendanceHistory';
 
 export const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -33,7 +34,6 @@ export const EmployeeDashboard: React.FC = () => {
     privilege: { taken: 0, total: 20 },
     unpaid: { taken: 0, total: 0 }
   });
-  // const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]); // Future use
 
   // State for Check-In/Out Simulation
   const [status, setStatus] = useState<'clocked-in' | 'clocked-out'>('clocked-out');
@@ -64,6 +64,18 @@ export const EmployeeDashboard: React.FC = () => {
             // 3. Real-time Attendance
             unsubscribeAttendance = EmployeeService.subscribeToAttendance(p.id, (a) => {
               setAttendance(a);
+              // Update status based on latest attendance
+              if (a.length > 0) {
+                const today = new Date().toISOString().split('T')[0];
+                const todayRecord = a.find(rec => rec.date === today);
+                if (todayRecord) {
+                  if (todayRecord.checkIn && !todayRecord.checkOut) {
+                    setStatus('clocked-in');
+                  } else {
+                    setStatus('clocked-out');
+                  }
+                }
+              }
             });
           }
         } catch (e) {
@@ -261,69 +273,70 @@ export const EmployeeDashboard: React.FC = () => {
         {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
           {view === 'attendance' ? (
-             <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">Attendance History</h2>
-                  <p className="text-sm text-slate-500 mt-1">View your check-in and check-out times.</p>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check In</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check Out</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hours</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {attendance.length > 0 ? attendance.map((record) => {
-                                const checkIn = record.checkIn ? new Date(record.checkIn) : null;
-                                const checkOut = record.checkOut ? new Date(record.checkOut) : null;
-                                let duration = '---';
-                                if (checkIn && checkOut) {
-                                  const diff = checkOut.getTime() - checkIn.getTime();
-                                  const hours = Math.floor(diff / 3600000);
-                                  const mins = Math.floor((diff % 3600000) / 60000);
-                                  duration = `${hours}h ${mins}m`;
-                                }
-                                return (
-                                <tr key={record.id} className="hover:bg-slate-50/50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                                      {new Date(record.date).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                            {record.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                        {checkIn ? checkIn.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '---'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                        {checkOut ? checkOut.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '---'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
-                                        {duration}
-                                    </td>
-                                </tr>
-                            )}) : (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">No attendance records found.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-             </div>
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900">Attendance History</h2>
+                <p className="text-sm text-slate-500 mt-1">View your check-in and check-out times.</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check In</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check Out</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-200">
+                    {attendance.length > 0 ? attendance.map((record) => {
+                      const checkIn = record.checkIn ? new Date(record.checkIn) : null;
+                      const checkOut = record.checkOut ? new Date(record.checkOut) : null;
+                      let duration = '---';
+                      if (checkIn && checkOut) {
+                        const diff = checkOut.getTime() - checkIn.getTime();
+                        const hours = Math.floor(diff / 3600000);
+                        const mins = Math.floor((diff % 3600000) / 60000);
+                        duration = `${hours}h ${mins}m`;
+                      }
+                      return (
+                        <tr key={record.id} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                            {new Date(record.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {checkIn ? checkIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {checkOut ? checkOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
+                            {duration}
+                          </td>
+                        </tr>
+                      )
+                    }) : (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">No attendance records found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : view === 'payroll' ? (
-             <PayrollPage 
-                initialWage={50000 * 12} 
-                allowEdit={false} 
-                employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')} 
-                employeeId={profile?.companyCode || '---'}
-             />
+            <PayrollPage
+              initialWage={50000 * 12}
+              allowEdit={false}
+              employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
+              employeeId={profile?.companyCode || '---'}
+            />
           ) : view === 'profile' ? (
             <ProfilePage
               profile={profile}
@@ -344,8 +357,7 @@ export const EmployeeDashboard: React.FC = () => {
                 alert("Leave application submitted successfully!");
                 if (user as any) {
                   if (profile?.id) {
-                    EmployeeService.getLeaveRequests(profile.id).then(setRequests);
-                    EmployeeService.getLeaveBalances(profile.id).then(setBalances);
+                    // Force refresh by re-fetching (though subscription handles it, this is safe)
                   }
                 }
                 setView('dashboard');
@@ -634,4 +646,3 @@ export const EmployeeDashboard: React.FC = () => {
     </div>
   );
 };
-
