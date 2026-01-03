@@ -616,6 +616,7 @@ export const EmployeeDashboard: React.FC = () => {
                             <th className="px-6 py-3 font-medium">Type</th>
                             <th className="px-6 py-3 font-medium">Dates</th>
                             <th className="px-6 py-3 font-medium">Status</th>
+                            <th className="px-6 py-3 font-medium">Note</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -628,10 +629,13 @@ export const EmployeeDashboard: React.FC = () => {
                                   {req.status}
                                 </span>
                               </td>
+                              <td className="px-6 py-4 text-slate-500 max-w-xs truncate" title={req.adminComments || ''}>
+                                {req.adminComments || '---'}
+                              </td>
                             </tr>
                           ))}
                           {requests.length === 0 && (
-                            <tr><td colSpan={3} className="p-6 text-center text-slate-500">No requests found</td></tr>
+                            <tr><td colSpan={4} className="p-6 text-center text-slate-500">No requests found</td></tr>
                           )}
                         </tbody>
                       </table>
