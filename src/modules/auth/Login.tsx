@@ -168,27 +168,6 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={async () => {
-                const id = prompt("Enter Admin ID:", "admin");
-                const pass = prompt("Enter Password:", "admin123");
-                if (id && pass) {
-                  try {
-                    await AuthService.register(id, pass);
-                    alert("Admin created! You can now login.");
-                  } catch (e: any) {
-                    alert("Failed: " + e.message);
-                  }
-                }
-              }}
-              className="text-xs text-blue-500 hover:underline w-full text-center block"
-            >
-              (Dev Only) Create Account
-            </button>
-          </div>
-
 
         </div>
       </div>
