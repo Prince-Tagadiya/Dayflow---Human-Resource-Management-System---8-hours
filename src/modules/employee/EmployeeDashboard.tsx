@@ -401,7 +401,9 @@ export const EmployeeDashboard: React.FC = () => {
               initialWage={profile?.ctc || 50000 * 12}
               allowEdit={false}
               employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
-              employeeId={profile?.id || '---'}
+              employeeId={profile?.companyCode || '---'}
+              designation={profile?.designation}
+              department={profile?.department}
             />
           ) : view === 'profile' ? (
             <ProfilePage
