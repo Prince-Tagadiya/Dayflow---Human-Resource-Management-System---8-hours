@@ -452,10 +452,10 @@ export const EmployeeDashboard: React.FC = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-white">Upcoming Holiday</h3>
-                        <p className="mt-1 text-sm text-blue-100">New Year's Day Celebration</p>
+                        <p className="mt-1 text-sm text-blue-100">Makar Sankranti</p>
                         <div className="mt-3 flex items-center gap-2 text-sm font-medium">
                           <CalendarDays size={18} />
-                          Jan 1, 2024 - Jan 2, 2024
+                          Jan 14, 2026 - Jan 15, 2026
                         </div>
                       </div>
                     </div>

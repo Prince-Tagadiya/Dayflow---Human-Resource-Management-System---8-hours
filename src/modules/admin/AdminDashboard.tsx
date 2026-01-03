@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { LogOut, Users, UserPlus, Clock, Calendar, Menu, TrendingUp, AlertCircle, CheckCircle, XCircle, Search, Filter, Settings, Check, X, CalendarDays, FileText, ChevronDown } from 'lucide-react';
+import { LogOut, Users, Clock, Calendar, Menu, TrendingUp, AlertCircle, CheckCircle, XCircle, Search, Filter, Settings, Banknote, Check, X, CalendarDays, FileText, ChevronDown } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { AdminService } from '../../services/adminService';
 import { useNavigate } from 'react-router-dom';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
+import { AttendanceView } from './AttendanceView';
+import { EmployeeDirectoryView } from './EmployeeDirectoryView';
 import type { EmployeeProfile, AttendanceRecord, TimeOffRequest } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'leaves'>('employees');
+  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'leaves' | 'payroll'>('employees');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -18,6 +20,7 @@ export const AdminDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [leaves, setLeaves] = useState<TimeOffRequest[]>([]);
+  // Payroll state removed as unused for now
   const [loading, setLoading] = useState(false);
 
   // Computed Stats
@@ -71,6 +74,14 @@ export const AdminDashboard: React.FC = () => {
       } else if (activeTab === 'leaves') {
         const data = await AdminService.getAllTimeOffRequests();
         setLeaves(data as TimeOffRequest[]);
+        if (employees.length === 0) {
+          const emps = await AdminService.getAllEmployees();
+          setEmployees(emps as EmployeeProfile[]);
+        }
+      } else if (activeTab === 'payroll') {
+        await AdminService.getAllPayrollRecords();
+        // setPayroll(data as PayrollRecord[]); <- Removed unused state
+        // We need employees to show the list for Salary Structure updates
         if (employees.length === 0) {
           const emps = await AdminService.getAllEmployees();
           setEmployees(emps as EmployeeProfile[]);
@@ -139,6 +150,12 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('leaves')}
               badge={stats.pendingLeaves > 0 ? stats.pendingLeaves : undefined}
             />
+            <SidebarItem
+              icon={<Banknote size={20} />}
+              label="Payroll"
+              isActive={activeTab === 'payroll'}
+              onClick={() => setActiveTab('payroll')}
+            />
           </nav>
         </div>
 
@@ -175,24 +192,16 @@ export const AdminDashboard: React.FC = () => {
           <div className="max-w-7xl mx-auto space-y-8">
 
             {/* Header & Stats */}
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Header - Hidden for Employees tab as it has its own internal header */}
+            {activeTab !== 'employees' && (
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 tracking-tight capitalize">{activeTab}</h1>
                   <p className="text-gray-500 mt-1 text-sm font-medium">Overview of your organization's {activeTab}.</p>
                 </div>
-                {activeTab === 'employees' && (
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    <UserPlus size={20} />
-                    Add Employee
-                  </button>
-                )}
+                {/* Add Employee Button Moved to EmployeeDirectoryView */}
               </div>
-
-            </div>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -229,15 +238,26 @@ export const AdminDashboard: React.FC = () => {
               </div>
             ) : (
               <>
-                {activeTab === 'leaves' ? (
+                {/* EMPLOYEES TAB - New Directory View */}
+                {activeTab === 'employees' ? (
+                  <EmployeeDirectoryView
+                    employees={employees}
+                    onAddEmployee={() => setShowCreateModal(true)}
+                  />
+                ) : activeTab === 'attendance' ? (
+                  /* ATTENDANCE TAB - Full Width Custom View */
+                  <AttendanceView
+                    employees={employees}
+                    attendance={attendance}
+                    onUpdateStatus={(id: string, status: string) => console.log('Update status', id, status)}
+                  />
+                ) : activeTab === 'leaves' ? (
                   // LEAVES VIEW (Cards)
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h2 className="text-lg font-bold text-gray-900">Recent Requests</h2>
                       <button className="text-sm font-medium text-blue-600 hover:text-blue-700">View History</button>
                     </div>
-
-                    {/* Search logic could go here, omitting for brevity/focus on cards */}
 
                     {leaves.length > 0 ? leaves.map((req) => {
                       const emp = employees.find(e => e.id === req.employeeId) || {
@@ -277,7 +297,6 @@ export const AdminDashboard: React.FC = () => {
                               </span>
                               <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
                                 <Clock size={14} />
-                                {/* Simple date diff for duration */}
                                 <span>{Math.ceil((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} Days</span>
                               </div>
                             </div>
@@ -325,80 +344,87 @@ export const AdminDashboard: React.FC = () => {
                     )}
                   </div>
                 ) : (
-                  // EMPLOYEES & ATTENDANCE VIEW (Tables)
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                    {/* Filter Bar */}
-                    <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/30">
-                      <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
+                  /* OTHER TABS - Standard Layout */
+                  <div className="space-y-6">
+
+                    {/* Standard Table Container */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                      {/* Generic Filter Bar */}
+                      <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/30">
+                        <div className="relative flex-1 max-w-md">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                          <input
+                            type="text"
+                            placeholder="Search..."
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                          />
+                        </div>
+                        <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                          <Filter size={16} />
+                          Filter
+                        </button>
                       </div>
-                      <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"><Filter size={16} /> Filter</button>
+
+
+                      {/* PAYROLL TABLE */}
+                      {activeTab === 'payroll' && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                            <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                              <tr>
+                                <th className="px-6 py-4">Employee</th>
+                                <th className="px-6 py-4">Designation</th>
+                                <th className="px-6 py-4">Salary Status</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {Array.isArray(employees) && employees.length > 0 ? employees.map((emp) => (
+                                <tr key={emp?.id || Math.random()} className="hover:bg-gray-50/80 transition-colors">
+                                  <td className="px-6 py-4 font-medium text-gray-900">{emp?.firstName || 'Unknown'} {emp?.lastName || ''}</td>
+                                  <td className="px-6 py-4 text-sm text-gray-600">{emp?.designation || '-'}</td>
+                                  <td className="px-6 py-4">
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                      Not Configured
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 text-right">
+                                    <button
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                                      onClick={() => emp?.firstName && alert(`Manage salary for ${emp.firstName}`)}
+                                    >
+                                      <Settings size={14} />
+                                      Manage
+                                    </button>
+                                  </td>
+                                </tr>
+                              )) : (
+                                <tr><td colSpan={4} className="p-12 text-center text-gray-500">No employees found.</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
-
-                    {activeTab === 'employees' && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                          <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                            <tr><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Role</th><th className="px-6 py-4">Department</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Actions</th></tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {employees.length > 0 ? employees.map((emp) => (
-                              <tr key={emp.id} className="hover:bg-gray-50/80 transition-colors group">
-                                <td className="px-6 py-4"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-bold text-sm shadow-inner">{getInitials(emp.firstName, emp.lastName)}</div><div><p className="font-semibold text-gray-900">{emp.firstName} {emp.lastName}</p><p className="text-xs text-gray-500">{emp.email}</p></div></div></td>
-                                <td className="px-6 py-4 text-sm text-gray-600 font-medium">{emp.designation}</td>
-                                <td className="px-6 py-4"><span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">{emp.department}</span></td>
-                                <td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}><span className={`w-1.5 h-1.5 rounded-full ${emp.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>{emp.isActive ? 'Active' : 'Inactive'}</span></td>
-                                <td className="px-6 py-4 text-right"><button className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50"><Settings size={18} /></button></td>
-                              </tr>
-                            )) : (<tr><td colSpan={5} className="p-12 text-center text-gray-500">No employees found.</td></tr>)}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {activeTab === 'attendance' && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                          <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                            <tr><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Date</th><th className="px-6 py-4">Check In</th><th className="px-6 py-4">Check Out</th><th className="px-6 py-4">Status</th></tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {attendance.map((record) => (
-                              <tr key={record.id} className="hover:bg-gray-50/80 transition-colors">
-                                <td className="px-6 py-4 font-medium text-gray-900">{getEmployeeName(record.employeeId)}</td>
-                                <td className="px-6 py-4 text-sm text-gray-500">{record.date}</td>
-                                <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                                <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                                <td className="px-6 py-4"><StatusBadge status={record.status} /></td>
-                              </tr>
-                            ))}
-                            {attendance.length === 0 && (<tr><td colSpan={5} className="p-12 text-center text-gray-500">No attendance records found for today.</td></tr>)}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
                   </div>
                 )}
               </>
             )}
           </div>
         </div>
-      </main >
+      </main>
 
       {/* Modals */}
-      {
-        showCreateModal && (
-          <CreateEmployeeModal
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-              fetchData();
-              fetchStats();
-            }}
-          />
-        )
-      }
-    </div >
+      {showCreateModal && (
+        <CreateEmployeeModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            fetchData();
+            fetchStats();
+          }}
+        />
+      )}
+    </div>
   );
 };
 

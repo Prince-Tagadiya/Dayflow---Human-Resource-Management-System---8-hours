@@ -45,7 +45,7 @@ export interface AttendanceRecord {
   date: string; // YYYY-MM-DD
   checkIn: string | null; // ISO Timestamp
   checkOut: string | null; // ISO Timestamp
-  status: 'present' | 'absent' | 'half-day' | 'on-leave';
+  status: 'present' | 'absent' | 'half-day' | 'on-leave' | 'late';
   isLocked: boolean; // Locked after payroll generation
 }
 
