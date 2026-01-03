@@ -3,18 +3,38 @@ import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc 
 import type { TimeOffRequest, AttendanceRecord, EmployeeProfile } from '../types';
 
 export const EmployeeService = {
-  // Fetch Employee Profile
+  // Fetch Employee Profile by ID (Document Key)
   getProfile: async (employeeId: string) => {
     try {
       const docRef = doc(db, 'employees', employeeId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return docSnap.data() as EmployeeProfile;
+        return { id: docSnap.id, ...docSnap.data() } as EmployeeProfile;
       }
       return null;
     } catch (error) {
       console.error("Error fetching profile:", error);
       throw error;
+    }
+  },
+
+  // Fetch Employee Profile by Auth UID
+  getProfileByUid: async (uid: string) => {
+    try {
+      const q = query(
+        collection(db, 'employees'), 
+        where('uid', '==', uid),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        return { id: docSnap.id, ...docSnap.data() } as EmployeeProfile;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching profile by UID:", error);
+      return null;
     }
   },
 

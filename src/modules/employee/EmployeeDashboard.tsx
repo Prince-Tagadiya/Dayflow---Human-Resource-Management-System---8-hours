@@ -39,18 +39,15 @@ export const EmployeeDashboard: React.FC = () => {
   const [displayTime, setDisplayTime] = useState<string>('09:00'); // For the big display
 
   useEffect(() => {
-    if ((user as any)?.employeeId) { // or fetch based on UID if employeeId is missing on user object initially
+    if (user?.uid) { 
          const fetchEmployeeData = async () => {
-             // 1. Get Profile (Real Data)
-             // We use a safe cast or logic here. If user.employeeId isn't on the type yet, we can try to fetch by UID if service supports it, 
-             // but for now let's assume valid ID or fallbacks.
-             // Ideally we'd have a method getProfileByUid but getProfile uses ID.
-             // For this step I'll try to fetch using the custom ID we supposedly have.
              try {
-                const p = await EmployeeService.getProfile((user as any).employeeId); 
+                // Try fetching by UID since we might not have employeeId in the user context directly
+                const p = await EmployeeService.getProfileByUid(user.uid); 
+                
                 if (p) {
                     setProfile(p);
-                    // 2. Get Leaves
+                    // 2. Get Leaves using the verified employee ID
                     const l = await EmployeeService.getLeaveRequests(p.id);
                     setRequests(l);
                     // 3. Get Balances
@@ -102,6 +99,18 @@ export const EmployeeDashboard: React.FC = () => {
     date.setMinutes(parseInt(minutes));
     setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
   };
+
+    const getInitials = () => {
+        if (profile?.firstName && profile?.lastName) {
+            return `${profile.firstName[0]}${profile.lastName[0]}`.toUpperCase();
+        }
+        if (user?.displayName) {
+             const names = user.displayName.split(' ');
+             if (names.length >= 2) return `${names[0][0]}${names[1][0]}`.toUpperCase();
+             return names[0][0].toUpperCase();
+        }
+        return 'U';
+    };
 
   return (
     <div className="flex h-screen w-full bg-[#f6f6f8] text-slate-800 font-sans overflow-hidden">
@@ -209,7 +218,7 @@ export const EmployeeDashboard: React.FC = () => {
               </div>
               <button className="group relative size-9 overflow-hidden rounded-full bg-slate-200 ring-2 ring-transparent transition-all hover:ring-blue-500/20">
                 <div className="flex items-center justify-center w-full h-full bg-blue-100 text-blue-600 font-bold">
-                  {profile?.firstName?.[0] || user?.displayName?.[0] || 'U'}
+                  {getInitials()}
                 </div>
               </button>
             </div>
@@ -227,8 +236,11 @@ export const EmployeeDashboard: React.FC = () => {
                         alert("Leave application submitted successfully!");
                         // Refresh Data
                         if (user as any) {
-                             EmployeeService.getLeaveRequests(profile!.id).then(setRequests);
-                             EmployeeService.getLeaveBalances(profile!.id).then(setBalances);
+                             // Use profile.id if available
+                             if(profile?.id) {
+                                EmployeeService.getLeaveRequests(profile.id).then(setRequests);
+                                EmployeeService.getLeaveBalances(profile.id).then(setBalances);
+                             }
                          }
                         setView('dashboard');
                     }}
@@ -395,7 +407,7 @@ export const EmployeeDashboard: React.FC = () => {
                         <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center justify-center size-16 rounded-full bg-slate-200 text-slate-500 text-2xl font-bold">
-                                {profile?.firstName?.[0] || user?.displayName?.[0] || 'U'}
+                                {getInitials()}
                             </div>
                             <div>
                             <h3 className="text-lg font-bold text-slate-900">
