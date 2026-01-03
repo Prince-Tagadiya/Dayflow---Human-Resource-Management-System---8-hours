@@ -136,6 +136,7 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                   <label className="text-sm font-medium text-gray-700">Year of Joining</label>
                   <input {...register('yearOfJoining', { valueAsNumber: true })} type="number" className="input-field" />
                   {errors.yearOfJoining && <p className="error-text">{errors.yearOfJoining.message}</p>}
+                  <input {...register('companyCode')} type="hidden" />
                 </div>
               </div>
 
