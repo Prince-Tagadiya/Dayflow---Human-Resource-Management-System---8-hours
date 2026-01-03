@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Download, History, TrendingUp, MinusCircle, Wallet, CheckCircle } from 'lucide-react';
-import { EmployeeSalaryDetails } from '../../types';
+import type { EmployeeSalaryDetails } from '../../types';
 import { PayrollService } from '../../services/payrollService';
 
 interface PayrollPageProps {

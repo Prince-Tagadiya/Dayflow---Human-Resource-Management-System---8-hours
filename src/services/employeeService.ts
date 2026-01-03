@@ -180,12 +180,13 @@ export const EmployeeService = {
   },
 
   // Apply for Leave
-  applyLeave: async (data: Omit<TimeOffRequest, 'id' | 'status'>) => {
+  applyLeave: async (data: Omit<TimeOffRequest, 'id' | 'status' | 'createdAt'>) => {
     try {
       await addDoc(collection(db, 'timeOffRequests'), {
         ...data,
         status: 'pending',
-        appliedAt: new Date().toISOString()
+        appliedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       });
     } catch (error) {
       console.error("Error applying leave:", error);
