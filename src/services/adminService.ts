@@ -1,6 +1,6 @@
-import { initializeApp, getApp, deleteApp } from 'firebase/app';
+import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, runTransaction, serverTimestamp, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { doc, setDoc, runTransaction, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import type { CreateEmployeeFormData } from '../types/forms';
 import { db } from '../firebase/firebase';
 
@@ -116,7 +116,10 @@ export const AdminService = {
         try {
             const q = query(collection(db, 'employees'), orderBy('dateOfJoining', 'desc'));
             const snapshot = await getDocs(q);
-            return snapshot.docs.map(doc => doc.data());
+            return snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { id: doc.id, ...data };
+            });
         } catch (error) {
             console.error("Error fetching employees:", error);
             throw error;
@@ -132,14 +135,13 @@ export const AdminService = {
                 : query(attendanceRef, orderBy('date', 'desc'), limit(100)); // Limit to prevent overload
 
             const snapshot = await getDocs(q);
-            return snapshot.docs.map(doc => doc.data());
+            return snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { id: doc.id, ...data };
+            });
         } catch (error) {
             // Indexing error might occur here initially
             console.error("Error fetching attendance:", error);
-            // Fallback if index not ready: get all limit 10
-            // const basicQ = query(attendanceRef, limit(20));
-            // const snap = await getDocs(basicQ);
-            // return snap.docs.map(d => d.data());
             throw error;
         }
     },
@@ -169,6 +171,51 @@ export const AdminService = {
         } catch (error) {
             console.error("Error updating leave request:", error);
             throw error;
+        }
+    },
+
+    getSalaryStructure: async (employeeId: string) => {
+        try {
+            const docSnap = await getDocs(query(collection(db, 'salaryStructures'), where('employeeId', '==', employeeId)));
+            if (!docSnap.empty) {
+                return docSnap.docs[0].data();
+            }
+            return null;
+        } catch (error) {
+            console.error("Error fetching salary structure:", error);
+            return null;
+        }
+    },
+
+    updateSalaryStructure: async (employeeId: string, data: any) => {
+        try {
+            // Check if exists
+            const q = query(collection(db, 'salaryStructures'), where('employeeId', '==', employeeId));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                // Update
+                const docId = querySnapshot.docs[0].id;
+                await setDoc(doc(db, 'salaryStructures', docId), { ...data, employeeId }, { merge: true });
+            } else {
+                // Create
+                const newDocRef = doc(collection(db, 'salaryStructures'));
+                await setDoc(newDocRef, { ...data, employeeId, id: newDocRef.id });
+            }
+        } catch (error) {
+            console.error("Error updating salary structure:", error);
+            throw error;
+        }
+    },
+
+    getAllPayrollRecords: async () => {
+        try {
+            const q = query(collection(db, 'payroll'), orderBy('month', 'desc'));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch (error) {
+            console.error("Error fetching payroll:", error);
+            return [];
         }
     }
 };
