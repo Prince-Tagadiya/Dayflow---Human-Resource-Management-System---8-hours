@@ -1,114 +1,459 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { LogOut, Users, UserPlus, FileText, Settings, Menu } from 'lucide-react';
+import { LogOut, Users, UserPlus, Clock, Calendar, Menu, TrendingUp, AlertCircle, CheckCircle, XCircle, Search, Filter, Settings } from 'lucide-react';
 import { AuthService } from '../../services/authService';
+import { AdminService } from '../../services/adminService';
 import { useNavigate } from 'react-router-dom';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
+import type { EmployeeProfile, AttendanceRecord, TimeOffRequest } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'leaves'>('employees');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Data State
+  const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [leaves, setLeaves] = useState<TimeOffRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Computed Stats
+  const [stats, setStats] = useState({
+    totalEmployees: 0,
+    presentToday: 0,
+    pendingLeaves: 0
+  });
+
+  // Fetch Data based on active tab and Stats
+  useEffect(() => {
+    fetchData();
+    fetchStats();
+  }, [activeTab]);
+
+  const fetchStats = async () => {
+    // Quick fetch for top cards (Optimized in real app to be single query)
+    try {
+      const allEmps = await AdminService.getAllEmployees();
+      const allLeaves = await AdminService.getAllTimeOffRequests();
+      const today = new Date().toISOString().split('T')[0];
+      const todaysAttendance = await AdminService.getAllAttendance(today);
+
+      setStats({
+        totalEmployees: Array.isArray(allEmps) ? allEmps.length : 0,
+        presentToday: Array.isArray(todaysAttendance) ? (todaysAttendance as AttendanceRecord[]).filter(a => a?.status === 'present').length : 0,
+        pendingLeaves: Array.isArray(allLeaves) ? (allLeaves as TimeOffRequest[]).filter(l => l?.status === 'pending').length : 0
+      });
+    } catch (e) {
+      console.error("Stats fetch error", e);
+    }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      if (activeTab === 'employees') {
+        const data = await AdminService.getAllEmployees();
+        setEmployees(data as EmployeeProfile[]);
+      } else if (activeTab === 'attendance') {
+        const data = await AdminService.getAllAttendance();
+        setAttendance(data as AttendanceRecord[]);
+        // Ensure we have employees for name mapping
+        if (employees.length === 0) {
+          const emps = await AdminService.getAllEmployees();
+          setEmployees(emps as EmployeeProfile[]);
+        }
+      } else if (activeTab === 'leaves') {
+        const data = await AdminService.getAllTimeOffRequests();
+        setLeaves(data as TimeOffRequest[]);
+        if (employees.length === 0) {
+          const emps = await AdminService.getAllEmployees();
+          setEmployees(emps as EmployeeProfile[]);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     await AuthService.logout();
     navigate('/login');
   };
 
+  const handleLeaveAction = async (requestId: string, status: 'approved' | 'rejected') => {
+    if (!user) return;
+    try {
+      await AdminService.updateTimeOffRequestStatus(requestId, status, user.uid);
+      fetchData(); // Refresh list
+      fetchStats(); // Update stats
+    } catch (e) {
+      console.error("Action failed", e);
+    }
+  };
+
+  const getEmployeeName = (empId: string) => {
+    const emp = employees.find(e => e.id === empId || e.uid === empId);
+    return emp ? `${emp.firstName} ${emp.lastName}` : empId;
+  };
+
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-[#F3F4F6] flex font-sans text-gray-900">
       {/* Sidebar - Desktop */}
-      <aside className={`fixed inset-y-0 left-0 bg-white border-r border-gray-200 z-30 w-64 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-200 ease-in-out`}>
-        <div className="p-6 h-full flex flex-col">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">D</div>
-            <span className="text-xl font-bold text-gray-900">Dayflow HR</span>
+      <aside className={`fixed inset-y-0 left-0 bg-white border-r border-gray-200 z-30 w-72 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col`}>
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-10 px-2">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-600/20">D</div>
+            <span className="text-2xl font-bold text-gray-900 tracking-tight">Dayflow</span>
           </div>
 
-          <nav className="flex-1 space-y-2">
-            <a href="#" className="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg font-medium">
-              <Users size={20} />
-              Employees
-            </a>
-            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg font-medium transition-colors">
-              <FileText size={20} />
-              Payroll
-            </a>
-            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg font-medium transition-colors">
-              <Settings size={20} />
-              Settings
-            </a>
+          <nav className="space-y-1.5">
+            <SidebarItem
+              icon={<Users size={20} />}
+              label="Employees"
+              isActive={activeTab === 'employees'}
+              onClick={() => setActiveTab('employees')}
+            />
+            <SidebarItem
+              icon={<Clock size={20} />}
+              label="Attendance"
+              isActive={activeTab === 'attendance'}
+              onClick={() => setActiveTab('attendance')}
+            />
+            <SidebarItem
+              icon={<Calendar size={20} />}
+              label="Leave Requests"
+              isActive={activeTab === 'leaves'}
+              onClick={() => setActiveTab('leaves')}
+              badge={stats.pendingLeaves > 0 ? stats.pendingLeaves : undefined}
+            />
           </nav>
+        </div>
 
-          <div className="pt-6 border-t border-gray-100">
-            <div className="flex items-center gap-3 px-4 py-3 mb-2">
-              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-medium">
-                AH
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">Admin HR</p>
-                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-              </div>
+        <div className="mt-auto p-6 border-t border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-3 mb-4 p-2 rounded-lg hover:bg-white transition-colors cursor-pointer">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-medium shadow-md">
+              AD
             </div>
-            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium text-sm transition-colors">
-              <LogOut size={18} />
-              Sign Out
-            </button>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">Admin User</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            </div>
           </div>
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 bg-white border border-red-100 hover:bg-red-50 rounded-lg font-medium text-sm transition-all shadow-sm">
+            <LogOut size={18} />
+            Sign Out
+          </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Header Mobile */}
-        <header className="bg-white border-b border-gray-200 p-4 md:hidden flex items-center justify-between">
-             <div className="flex items-center gap-3">
-                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-gray-600">
-                    <Menu size={24} />
-                </button>
-                <span className="font-bold text-gray-900">Dayflow</span>
-             </div>
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden h-screen">
+        {/* Mobile Header */}
+        <header className="bg-white border-b border-gray-200 p-4 md:hidden flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-gray-600">
+              <Menu size={24} />
+            </button>
+            <span className="font-bold text-gray-900">Dayflow</span>
+          </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
-                <p className="text-gray-500 mt-1">Manage onboarding, roles, and profiles.</p>
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 scroll-smooth">
+          <div className="max-w-7xl mx-auto space-y-8">
+
+            {/* Header & Stats */}
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 tracking-tight capitalize">{activeTab}</h1>
+                  <p className="text-gray-500 mt-1 text-sm font-medium">Overview of your organization's {activeTab}.</p>
+                </div>
+                {activeTab === 'employees' && (
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    <UserPlus size={20} />
+                    Add Employee
+                  </button>
+                )}
               </div>
-              <button 
-                onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-colors"
-              >
-                <UserPlus size={20} />
-                Create Employee
-              </button>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatsCard
+                  title="Total Employees"
+                  value={stats.totalEmployees}
+                  icon={<Users size={24} className="text-blue-600" />}
+                  bg="bg-blue-50"
+                  trend="+2 this month"
+                />
+                <StatsCard
+                  title="Present Today"
+                  value={stats.presentToday}
+                  icon={<CheckCircle size={24} className="text-green-600" />}
+                  bg="bg-green-50"
+                  trend="85% Attendance"
+                />
+                <StatsCard
+                  title="Pending Requests"
+                  value={stats.pendingLeaves}
+                  icon={<AlertCircle size={24} className="text-amber-600" />}
+                  bg="bg-amber-50"
+                  trend="Needs Attention"
+                  urgent={stats.pendingLeaves > 0}
+                />
+              </div>
             </div>
 
-            {/* Empty State or Table Placeholder */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                <Users size={32} />
+            {/* Content Table */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-gray-400 font-medium">Loading data...</p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900">No Employees Found</h3>
-              <p className="text-gray-500 mt-1 max-w-sm mx-auto">Start by adding your first employee to the system. They will receive their credentials immediately.</p>
-            </div>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                {/* Filter Bar (Placeholder) */}
+                <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/30">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                    <Filter size={16} />
+                    Filter
+                  </button>
+                </div>
+
+                {/* EMPLOYEES TABLE */}
+                {activeTab === 'employees' && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                        <tr>
+                          <th className="px-6 py-4">Employee</th>
+                          <th className="px-6 py-4">Role</th>
+                          <th className="px-6 py-4">Department</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {employees.length > 0 ? employees.map((emp) => (
+                          <tr key={emp.id} className="hover:bg-gray-50/80 transition-colors group">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-bold text-sm shadow-inner">
+                                  {getInitials(emp.firstName, emp.lastName)}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-gray-900">{emp.firstName} {emp.lastName}</p>
+                                  <p className="text-xs text-gray-500">{emp.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600 font-medium">{emp.designation}</td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
+                                {emp.department}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${emp.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                {emp.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50">
+                                <Settings size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        )) : (
+                          <tr><td colSpan={5} className="p-12 text-center text-gray-500">No employees found.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* ATTENDANCE TABLE */}
+                {activeTab === 'attendance' && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                        <tr>
+                          <th className="px-6 py-4">Employee</th>
+                          <th className="px-6 py-4">Date</th>
+                          <th className="px-6 py-4">Check In</th>
+                          <th className="px-6 py-4">Check Out</th>
+                          <th className="px-6 py-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {attendance.map((record) => (
+                          <tr key={record.id} className="hover:bg-gray-50/80 transition-colors">
+                            <td className="px-6 py-4 font-medium text-gray-900">{getEmployeeName(record.employeeId)}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{record.date}</td>
+                            <td className="px-6 py-4 text-sm font-mono text-gray-600">
+                              {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </td>
+                            <td className="px-6 py-4 text-sm font-mono text-gray-600">
+                              {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </td>
+                            <td className="px-6 py-4">
+                              <StatusBadge status={record.status} />
+                            </td>
+                          </tr>
+                        ))}
+                        {attendance.length === 0 && (
+                          <tr><td colSpan={5} className="p-12 text-center text-gray-500">No attendance records found for today.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* LEAVES TABLE */}
+                {activeTab === 'leaves' && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                        <tr>
+                          <th className="px-6 py-4">Employee</th>
+                          <th className="px-6 py-4">Type & Duration</th>
+                          <th className="px-6 py-4">Reason</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {leaves.map((req) => (
+                          <tr key={req.id} className="hover:bg-gray-50/80 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="font-medium text-gray-900">{getEmployeeName(req.employeeId)}</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-gray-900 capitalize">{req.type} Leave</span>
+                                <span className="text-xs text-gray-500">{req.startDate} to {req.endDate}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{req.reason}</td>
+                            <td className="px-6 py-4">
+                              <StatusBadge status={req.status} />
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              {req.status === 'pending' && (
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => handleLeaveAction(req.id, 'approved')}
+                                    className="p-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-200" title="Approve">
+                                    <CheckCircle size={18} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleLeaveAction(req.id, 'rejected')}
+                                    className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200" title="Reject">
+                                    <XCircle size={18} />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {leaves.length === 0 && (
+                          <tr><td colSpan={5} className="p-12 text-center text-gray-500">No pending leave requests.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>
 
       {/* Modals */}
       {showCreateModal && (
-        <CreateEmployeeModal 
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-                // Refresh list
-                console.log("Employee list should refresh");
-            }}
+        <CreateEmployeeModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            fetchData();
+            fetchStats();
+          }}
         />
       )}
     </div>
+  );
+};
+
+// --- Sub Components ---
+
+const SidebarItem: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void, badge?: number }> = ({ icon, label, isActive, onClick, badge }) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium transition-all duration-200 group ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}
+  >
+    <div className="flex items-center gap-3">
+      <span className={isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}>{icon}</span>
+      <span>{label}</span>
+    </div>
+    {badge ? (
+      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600'}`}>
+        {badge}
+      </span>
+    ) : null}
+  </button>
+);
+
+const StatsCard: React.FC<{ title: string, value: number, icon: React.ReactNode, bg: string, trend: string, urgent?: boolean }> = ({ title, value, icon, bg, trend, urgent }) => (
+  <div className={`bg-white p-6 rounded-2xl border ${urgent ? 'border-red-200 shadow-red-100' : 'border-gray-100'} shadow-sm hover:shadow-md transition-shadow`}>
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-500">{title}</p>
+        <h3 className="text-3xl font-bold text-gray-900 mt-2">{value}</h3>
+      </div>
+      <div className={`p-3 rounded-xl ${bg}`}>
+        {icon}
+      </div>
+    </div>
+    <div className="mt-4 flex items-center gap-2 text-xs font-medium">
+      <span className={urgent ? 'text-red-600' : 'text-green-600'}>
+        {urgent ? <AlertCircle size={14} className="inline mr-1" /> : <TrendingUp size={14} className="inline mr-1" />}
+        {trend}
+      </span>
+    </div>
+  </div>
+);
+
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  // Defensive check
+  const safeStatus = (status || 'unknown').toLowerCase();
+
+  let styles = "bg-gray-100 text-gray-700";
+  if (['present', 'approved', 'active'].includes(safeStatus)) styles = "bg-green-100 text-green-700 border border-green-200";
+  if (['absent', 'rejected', 'inactive'].includes(safeStatus)) styles = "bg-red-100 text-red-700 border border-red-200";
+  if (['pending', 'half-day'].includes(safeStatus)) styles = "bg-amber-100 text-amber-700 border border-amber-200";
+
+  return (
+    <span className={`capitalize inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${styles}`}>
+      {status || 'Unknown'}
+    </span>
   );
 };
