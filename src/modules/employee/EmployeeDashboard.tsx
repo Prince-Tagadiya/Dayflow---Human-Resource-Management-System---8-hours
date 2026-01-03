@@ -192,7 +192,7 @@ export const EmployeeDashboard: React.FC = () => {
 
         {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl">
+          <div className="w-full">
             {/* Page Heading */}
             <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
