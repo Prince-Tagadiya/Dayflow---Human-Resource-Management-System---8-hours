@@ -669,7 +669,7 @@ export const EmployeeDashboard: React.FC = () => {
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                     <h3 className="text-base font-semibold text-slate-900 mb-6 font-display">Recent Activity</h3>
-                    <div className="flow-root">
+                    <div className="flow-root max-h-[400px] overflow-y-auto pr-2">
                       <ul role="list" className="-mb-8">
                         {(() => {
                           const allActivities = [
@@ -682,7 +682,16 @@ export const EmployeeDashboard: React.FC = () => {
                               const outDate = parseDate(a.checkOut);
 
                               if (inDate) arr.push({ time: inDate.toISOString(), label: 'Clocked In', color: 'bg-emerald-500' });
-                              if (outDate) arr.push({ time: outDate.toISOString(), label: 'Clocked Out', color: 'bg-rose-500' });
+                              if (outDate) {
+                                let durationStr = '';
+                                if (inDate) {
+                                   const diff = outDate.getTime() - inDate.getTime();
+                                   const hours = Math.floor(diff / 3600000);
+                                   const mins = Math.floor((diff % 3600000) / 60000);
+                                   durationStr = ` (${hours}h ${mins}m)`;
+                                }
+                                arr.push({ time: outDate.toISOString(), label: `Clocked Out${durationStr}`, color: 'bg-rose-500' });
+                              }
                               return arr;
                             }),
                             ...requests.flatMap(r => {
@@ -710,7 +719,7 @@ export const EmployeeDashboard: React.FC = () => {
                               }
                               return acts;
                             })
-                          ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+                          ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 20);
 
                           const formatActivityTime = (dateStr: string) => {
                             const date = new Date(dateStr);
