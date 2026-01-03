@@ -62,12 +62,15 @@ Follow these steps to set up the project locally.
    VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
    VITE_FIREBASE_APP_ID=your_app_id
+   VITE_FIREBASE_MEASUREMENT_ID=your_measurement_id
    ```
 
 4. **Run the application**
    ```bash
    npm run dev
    ```
+
+   The application will be available at `http://localhost:5173` (or the port shown in your terminal).
 
 ## 📸 Screenshots
 
