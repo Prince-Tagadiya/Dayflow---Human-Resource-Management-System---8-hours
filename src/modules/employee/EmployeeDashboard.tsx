@@ -13,6 +13,7 @@ import type { EmployeeProfile, TimeOffRequest, AttendanceRecord } from '../../ty
 
 import { ApplyLeave } from './ApplyLeave';
 import { ProfilePage } from './ProfilePage';
+import { PayrollPage } from '../payroll/PayrollPage';
 
 export const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -20,7 +21,7 @@ export const EmployeeDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // View State for Navigation
-  const [view, setView] = useState<'dashboard' | 'apply-leave' | 'profile'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'apply-leave' | 'profile' | 'payroll'>('dashboard');
 
   // Data State
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
@@ -174,10 +175,10 @@ export const EmployeeDashboard: React.FC = () => {
               <Calendar size={20} className={view === 'apply-leave' ? '' : "group-hover:text-blue-600 transition-colors"} />
               <span className="text-sm font-medium">Leaves</span>
             </button>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <CreditCard size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Payroll</span>
-            </a>
+            <button onClick={() => setView('payroll')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'payroll' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <CreditCard size={20} className={view === 'payroll' ? '' : "group-hover:text-blue-600 transition-colors"} />
+              <span className="text-sm font-medium">Payroll</span>
+            </button>
           </nav>
 
           <nav className="flex flex-col gap-1">
@@ -259,7 +260,14 @@ export const EmployeeDashboard: React.FC = () => {
 
         {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
-          {view === 'profile' ? (
+          {view === 'payroll' ? (
+             <PayrollPage 
+                initialWage={50000 * 12} 
+                allowEdit={false} 
+                employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')} 
+                employeeId={profile?.companyCode || '---'}
+             />
+          ) : view === 'profile' ? (
             <ProfilePage
               profile={profile}
               onBack={() => setView('dashboard')}
