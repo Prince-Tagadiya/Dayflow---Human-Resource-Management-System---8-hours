@@ -20,7 +20,7 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
   });
 
   const [loading, setLoading] = useState(false);
-  const [createdCredentials, setCreatedCredentials] = useState<{ loginId: string; tempPass: string } | null>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<{ loginId: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (data: CreateEmployeeFormData) => {
@@ -72,15 +72,8 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                     </button>
                   </div>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Temporary Password</label>
-                  <div className="flex items-center justify-between mt-1">
-                    <code className="text-lg font-mono font-bold text-gray-900">{createdCredentials.tempPass}</code>
-                    <button onClick={() => copyToClipboard(createdCredentials.tempPass)} className="text-blue-600 hover:text-blue-700 p-1">
-                      <Copy size={16} />
-                    </button>
-                  </div>
-                </div>
+                
+                {/* Temp Password removed - User sets password during activation */}
               </div>
 
               <div className="pt-4">
