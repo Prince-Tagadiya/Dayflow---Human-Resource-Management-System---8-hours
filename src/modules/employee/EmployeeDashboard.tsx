@@ -398,8 +398,10 @@ export const EmployeeDashboard: React.FC = () => {
                                 {profile?.firstName?.[0] || user?.displayName?.[0] || 'U'}
                             </div>
                             <div>
-                            <h3 className="text-lg font-bold text-slate-900">{profile?.firstName} {profile?.lastName}</h3>
-                            <p className="text-sm text-slate-500">ID: {profile?.id || '---'}</p>
+                            <h3 className="text-lg font-bold text-slate-900">
+                                {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'User')}
+                            </h3>
+                            <p className="text-sm text-slate-500">ID: {profile?.companyCode || '---'}</p>
                             <span className="mt-1 inline-flex items-center gap-1.5 rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                                 <span className="size-1.5 rounded-full bg-emerald-500"></span> Active
                             </span>
@@ -428,10 +430,10 @@ export const EmployeeDashboard: React.FC = () => {
                             </div>
                             <div>
                             <h3 className="font-semibold text-white">Upcoming Holiday</h3>
-                            <p className="mt-1 text-sm text-blue-100">Thanksgiving Day is coming up next month.</p>
+                            <p className="mt-1 text-sm text-blue-100">New Year's Day Celebration</p>
                             <div className="mt-3 flex items-center gap-2 text-sm font-medium">
                                 <CalendarDays size={18} />
-                                Nov 24, 2023
+                                Jan 1, 2024 - Jan 2, 2024
                             </div>
                             </div>
                         </div>
