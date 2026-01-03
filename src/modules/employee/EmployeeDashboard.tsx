@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  LayoutDashboard, User, Clock, Calendar, CreditCard, Settings, HelpCircle, LogOut,
+  LayoutDashboard, User, Clock, Calendar, CreditCard, LogOut,
   Menu, Search, Bell, Plus, Sun, Thermometer, CheckCircle, PartyPopper, CalendarDays,
   ChevronDown, X, Trash2
 } from 'lucide-react';
@@ -345,9 +345,8 @@ export const EmployeeDashboard: React.FC = () => {
                 Clock Out
               </button>
             </div>
-
             <div className="relative">
-              <button onClick={() => setShowNotifications(!showNotifications)} className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
+              <button onClick={() => setShowNotifications(!showNotifications)} className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none">
                 <Bell size={20} />
                 {notifications.length > 0 && (
                   <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
