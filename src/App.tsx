@@ -4,6 +4,7 @@ import { Login } from './modules/auth/Login';
 import { AdminDashboard } from './modules/admin/AdminDashboard';
 import { SetupAdmin } from './modules/admin/SetupAdmin';
 import { AdminGuard, EmployeeGuard } from './guards/RoleGuard';
+import { LandingPage } from './modules/landing/LandingPage';
 import './App.css';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/setup" element={<SetupAdmin />} />
           
