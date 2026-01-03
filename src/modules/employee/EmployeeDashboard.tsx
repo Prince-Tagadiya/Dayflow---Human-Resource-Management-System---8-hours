@@ -353,14 +353,28 @@ export const EmployeeDashboard: React.FC = () => {
                         const mins = Math.floor((diff % 3600000) / 60000);
                         duration = `${hours}h ${mins}m`;
                       }
+
+                      // Determine Status Display
+                      let statusLabel = record.status;
+                      let statusColor = record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+                      
+                      if (checkIn) {
+                        const shiftStart = new Date(checkIn);
+                        shiftStart.setHours(9, 15, 0, 0); // 9:15 AM Threshold
+                        if (checkIn > shiftStart) {
+                            statusLabel = 'late';
+                            statusColor = 'bg-amber-100 text-amber-800';
+                        }
+                      }
+
                       return (
                         <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                             {new Date(record.date).toLocaleDateString()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {record.status}
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${statusColor}`}>
+                              {statusLabel}
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
