@@ -4,6 +4,9 @@ import { Login } from './modules/auth/Login';
 import { AdminDashboard } from './modules/admin/AdminDashboard';
 import { SetupAdmin } from './modules/admin/SetupAdmin';
 import { AdminGuard, EmployeeGuard } from './guards/RoleGuard';
+import { LandingPage } from './modules/landing/LandingPage';
+import { Activate } from './modules/auth/Activate';
+import { ForgotPassword } from './modules/auth/ForgotPassword';
 import './App.css';
 
 function App() {
@@ -11,7 +14,10 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/activate" element={<Activate />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/setup" element={<SetupAdmin />} />
           
           <Route path="/dashboard/hr" element={
