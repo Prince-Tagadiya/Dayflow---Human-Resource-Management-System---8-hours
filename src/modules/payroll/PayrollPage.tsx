@@ -2,30 +2,34 @@ import React, { useState, useEffect } from 'react';
 import { Download, History, TrendingUp, MinusCircle, Wallet, CheckCircle } from 'lucide-react';
 import type { EmployeeSalaryDetails } from '../../types';
 import { PayrollService } from '../../services/payrollService';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface PayrollPageProps {
   initialWage?: number;
   allowEdit?: boolean;
   employeeName?: string;
   employeeId?: string;
+  designation?: string;
+  department?: string;
   onSave?: (details: EmployeeSalaryDetails) => void;
 }
 
 export const PayrollPage: React.FC<PayrollPageProps> = ({ 
-  initialWage = 600000, // Default Annual CTC or Monthly? Provided example seems Monthly (50,000). Let's assume input is Monthly Wage.
+  initialWage = 600000, 
   allowEdit = false, 
   employeeName = "Alex Morgan", 
   employeeId = "EMP-001",
+  designation,
+  department,
   onSave 
 }) => {
-  // Input should be Monthly Wage based on example (50,000)
-  const [wage, setWage] = useState<number>(initialWage / 12); // Assuming initialWage passed might be annual, but let's stick to Monthly input for simplicity if not specified. Actually example says Wage = 50,000 which looks like monthly salary.
-  
-  // State for calculation
+  const [wage, setWage] = useState<number>(initialWage / 12);
   const [details, setDetails] = useState<EmployeeSalaryDetails | null>(null);
+  const slipRef = React.useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
-    // Recalculate whenever wage changes
     const calculated = PayrollService.calculateSalaryBreakdown(wage);
     setDetails({ ...calculated, employeeId });
   }, [wage, employeeId]);
@@ -45,10 +49,120 @@ export const PayrollPage: React.FC<PayrollPageProps> = ({
     }).format(amount);
   };
 
+  const downloadSalarySlip = async () => {
+    if (!details || !slipRef.current) return;
+    
+    try {
+      setIsGeneratingPdf(true);
+      const canvas = await html2canvas(slipRef.current, { 
+        scale: 2, // High resolution
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Salary_Slip_${employeeName.replace(/\s+/g, '_')}_${new Date().toLocaleString('default', { month: 'short' })}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   if (!details) return <div>Loading...</div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20">
+    <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
+      {/* Hidden Salary Slip Template for PDF Generation */}
+      <div className="absolute left-[-9999px] top-0">
+        <div ref={slipRef} className="w-[800px] p-12 bg-white text-slate-900 font-sans">
+            {/* Header */}
+            <div className="text-center border-b-2 border-slate-100 pb-6 mb-8">
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">Dayflow Technologies</h1>
+                <p className="text-slate-500">Salary Slip for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                <div className="text-xs text-slate-400 mt-1">123 Tech Park, Innovation Drive, Silicon Valley, CA</div>
+            </div>
+
+            {/* Employee Info */}
+            <div className="grid grid-cols-2 gap-8 bg-slate-50 p-6 rounded-lg mb-8">
+                <div>
+                     <div className="flex justify-between mb-3">
+                        <span className="text-slate-500 font-medium">Employee Name</span>
+                        <span className="font-bold text-slate-900">{employeeName}</span>
+                     </div>
+                     <div className="flex justify-between">
+                        <span className="text-slate-500 font-medium">Employee ID</span>
+                        <span className="font-bold text-slate-900">{employeeId}</span>
+                     </div>
+                </div>
+                <div>
+                     <div className="flex justify-between mb-3">
+                        <span className="text-slate-500 font-medium">Designation</span>
+                        <span className="font-bold text-slate-900">{designation || '-'}</span>
+                     </div>
+                     <div className="flex justify-between">
+                        <span className="text-slate-500 font-medium">Department</span>
+                        <span className="font-bold text-slate-900">{department || '-'}</span>
+                     </div>
+                </div>
+            </div>
+
+            {/* Tables */}
+            <div className="flex gap-8 mb-8">
+                {/* Earnings */}
+                <div className="flex-1">
+                    <h3 className="text-emerald-600 font-bold uppercase text-sm border-b border-slate-200 pb-2 mb-4">Earnings</h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between text-sm"><span>Basic Salary</span> <span className="font-mono font-medium">{formatCurrency(details.basic)}</span></div>
+                        <div className="flex justify-between text-sm"><span>House Rent Allow.</span> <span className="font-mono font-medium">{formatCurrency(details.hra)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Standard Allow.</span> <span className="font-mono font-medium">{formatCurrency(details.standardAllowance)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Performance Bonus</span> <span className="font-mono font-medium">{formatCurrency(details.performanceBonus)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Leave Travel Allow.</span> <span className="font-mono font-medium">{formatCurrency(details.lta)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Fixed Allowance</span> <span className="font-mono font-medium">{formatCurrency(details.fixedAllowance)}</span></div>
+                        <div className="flex justify-between text-sm pt-3 border-t border-slate-100 font-bold mt-2">
+                             <span>Gross Earnings</span> 
+                             <span className="font-mono">{formatCurrency(details.ctc)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Deductions */}
+                <div className="flex-1">
+                    <h3 className="text-rose-600 font-bold uppercase text-sm border-b border-slate-200 pb-2 mb-4">Deductions</h3>
+                     <div className="space-y-3">
+                        <div className="flex justify-between text-sm"><span>Provident Fund</span> <span className="font-mono font-medium">{formatCurrency(details.pf)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Professional Tax</span> <span className="font-mono font-medium">{formatCurrency(details.pt)}</span></div>
+                         <div className="flex justify-between text-sm pt-3 border-t border-slate-100 font-bold mt-2">
+                             <span>Total Deductions</span> 
+                             <span className="font-mono">{formatCurrency(details.pf + details.pt)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Net Pay */}
+            <div className="bg-slate-900 text-white p-6 rounded-lg flex justify-between items-center mb-12">
+                <div>
+                     <p className="text-slate-300 text-sm font-medium uppercase tracking-wider">Net Salary Payable</p>
+                     <p className="text-xs text-slate-400 mt-1">In Words: {details.netSalary} Rupees Only</p>
+                </div>
+                <div className="text-3xl font-bold">{formatCurrency(details.netSalary)}</div>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-slate-400 border-t border-dashed border-slate-200 pt-6">
+                <p className="mb-1">This is a system generated salary slip and does not require a physical signature.</p>
+                <p>© {new Date().getFullYear()} Dayflow Technologies. All rights reserved.</p>
+            </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -56,13 +170,13 @@ export const PayrollPage: React.FC<PayrollPageProps> = ({
           <p className="text-slate-500">Manage and view salary structure and payslips.</p>
         </div>
         <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors">
-                <History size={18} />
-                <span>History View</span>
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <Download size={18} />
-                <span>Download Salary Slip</span>
+            <button 
+                onClick={downloadSalarySlip}
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {isGeneratingPdf ? <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Download size={18} />}
+                <span>{isGeneratingPdf ? 'Generating...' : 'Download Salary Slip'}</span>
             </button>
         </div>
       </div>

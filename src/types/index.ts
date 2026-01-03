@@ -21,10 +21,16 @@ export interface EmployeeProfile {
   department: string;
   dateOfJoining: string; // ISO Date
   isActive: boolean;
-  companyCode?: string; // Custom Employee Code
-  ctc?: number; // Annual CTC
-
-  // Explicitly excluding salary data from this shared interface
+  companyCode?: string;
+  ctc?: number;
+  gender?: 'male' | 'female' | 'other' | 'na';
+  dateOfBirth?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  photoURL?: string;
 }
 
 export interface SalaryStructure {

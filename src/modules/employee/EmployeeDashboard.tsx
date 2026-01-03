@@ -398,9 +398,13 @@ export const EmployeeDashboard: React.FC = () => {
                 <p className="text-xs text-slate-500">{profile?.designation || 'Employee'}</p>
               </div>
               <button className="group relative size-9 overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-blue-500/20 shadow-sm border border-slate-200">
-                <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold">
-                  {getInitials()}
-                </div>
+                {profile?.photoURL ? (
+                  <img src={profile.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold">
+                    {getInitials()}
+                  </div>
+                )}
               </button>
             </div>
           </div>
@@ -414,7 +418,9 @@ export const EmployeeDashboard: React.FC = () => {
               initialWage={profile?.ctc || 50000 * 12}
               allowEdit={false}
               employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
-              employeeId={profile?.id || '---'}
+              employeeId={profile?.companyCode || '---'}
+              designation={profile?.designation}
+              department={profile?.department}
             />
           ) : view === 'profile' ? (
             <ProfilePage
@@ -565,9 +571,13 @@ export const EmployeeDashboard: React.FC = () => {
                 <div className="flex flex-col gap-6 lg:col-span-4">
                   <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-2xl font-bold shadow-lg ring-4 ring-blue-50">
-                        {getInitials()}
-                      </div>
+                      {profile?.photoURL ? (
+                        <img src={profile.photoURL} alt="Profile" className="size-16 rounded-full border-4 border-white shadow-lg object-cover bg-slate-100 ring-4 ring-blue-50" />
+                      ) : (
+                        <div className="flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-2xl font-bold shadow-lg ring-4 ring-blue-50">
+                          {getInitials()}
+                        </div>
+                      )}
                       <div>
                         <h3 className="text-lg font-bold text-slate-900 leading-tight">{profile?.firstName} {profile?.lastName}</h3>
                         <p className="text-sm font-medium text-slate-500 mt-0.5">ID: {profile?.id || '---'}</p>
