@@ -769,23 +769,29 @@ export const EmployeeDashboard: React.FC = () => {
               <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-md">
                 <CheckCircle size={32} className="text-white" />
               </div>
-              <h3 className="text-xl font-bold">Session Recorded!</h3>
-              <p className="text-blue-100 text-sm mt-1">{summaryModal.data.date}</p>
-            </div>
+                <h3 className="text-xl font-bold text-white mb-2">Session Recorded!</h3>
+                <p className="text-blue-100">
+                  {new Date(summaryModal.data.checkOut).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
             <div className="p-6 space-y-4">
-              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+              <div className="flex justify-between items-center mb-6 pb-6 border-b border-slate-100">
                 <span className="text-slate-500 text-sm">Total Work Hours</span>
                 <span className="text-xl font-bold text-slate-900">{summaryModal.data.duration}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Check In</p>
-                  <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkIn}</p>
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-slate-500 font-medium mb-1 uppercase tracking-wider">Check In</p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {new Date(summaryModal.data.checkIn).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Check Out</p>
-                  <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkOut}</p>
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-slate-500 font-medium mb-1 uppercase tracking-wider">Check Out</p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {new Date(summaryModal.data.checkOut).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 </div>
               </div>
 
