@@ -63,75 +63,82 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ employees, atten
     return (
         <div className="space-y-6">
             {/* Top Stats Row */}
-            {/* Top Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
                 {/* Total Staff */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-start mb-4">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-gray-500 text-sm font-medium">Total Staff</p>
+                            <div className="flex items-end gap-2 mt-1">
+                                <h3 className="text-2xl font-bold text-gray-900">{employees.length}</h3>
+                                <span className="text-emerald-600 text-xs font-semibold flex items-center mb-1">
+                                    <ArrowUpRight size={12} className="mr-0.5" /> +2%
+                                </span>
+                            </div>
+                        </div>
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
                             <Users size={20} />
                         </div>
-                    </div>
-                    <p className="text-gray-500 text-sm font-medium">Total Staff</p>
-                    <div className="flex items-end gap-2 mt-1">
-                        <h3 className="text-2xl font-bold text-gray-900">{employees.length}</h3>
-                        <span className="text-emerald-600 text-xs font-semibold flex items-center mb-1">
-                            <ArrowUpRight size={12} className="mr-0.5" /> +2%
-                        </span>
                     </div>
                 </div>
 
                 {/* Present */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-start mb-4">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-gray-500 text-sm font-medium">Present</p>
+                            <div className="flex items-end gap-2 mt-1">
+                                <h3 className="text-2xl font-bold text-gray-900">
+                                    {attendance.filter(a => a.status === 'present').length}
+                                </h3>
+                                <span className="text-emerald-600 text-xs font-semibold flex items-center mb-1">
+                                    <ArrowUpRight size={12} className="mr-0.5" /> +96%
+                                </span>
+                            </div>
+                        </div>
                         <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
                             <CheckCircle size={20} />
                         </div>
-                    </div>
-                    <p className="text-gray-500 text-sm font-medium">Present</p>
-                    <div className="flex items-end gap-2 mt-1">
-                        <h3 className="text-2xl font-bold text-gray-900">
-                            {attendance.filter(a => a.status === 'present').length}
-                        </h3>
-                        <span className="text-emerald-600 text-xs font-semibold flex items-center mb-1">
-                            <ArrowUpRight size={12} className="mr-0.5" /> +96%
-                        </span>
                     </div>
                 </div>
 
                 {/* Late */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-start mb-4">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-gray-500 text-sm font-medium">Late</p>
+                            <div className="flex items-end gap-2 mt-1">
+                                <h3 className="text-2xl font-bold text-gray-900">
+                                    {attendance.filter(a => a.status === 'late').length}
+                                </h3>
+                                <span className="text-red-500 text-xs font-semibold flex items-center mb-1">
+                                    <ArrowDownRight size={12} className="mr-0.5" /> -10%
+                                </span>
+                            </div>
+                        </div>
                         <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
                             <Clock size={20} />
                         </div>
-                    </div>
-                    <p className="text-gray-500 text-sm font-medium">Late</p>
-                    <div className="flex items-end gap-2 mt-1">
-                        <h3 className="text-2xl font-bold text-gray-900">
-                            {attendance.filter(a => a.status === 'late').length}
-                        </h3>
-                        <span className="text-red-500 text-xs font-semibold flex items-center mb-1">
-                            <ArrowDownRight size={12} className="mr-0.5" /> -10%
-                        </span>
                     </div>
                 </div>
 
                 {/* On Leave */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-start mb-4">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-gray-500 text-sm font-medium">On Leave</p>
+                            <div className="flex items-end gap-2 mt-1">
+                                <h3 className="text-2xl font-bold text-gray-900">
+                                    {attendance.filter(a => a.status === 'on-leave').length}
+                                </h3>
+                                <span className="text-emerald-600 text-xs font-semibold flex items-center mb-1">
+                                    <ArrowUpRight size={12} className="mr-0.5" /> +1%
+                                </span>
+                            </div>
+                        </div>
                         <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
                             <AlertCircle size={20} />
                         </div>
-                    </div>
-                    <p className="text-gray-500 text-sm font-medium">On Leave</p>
-                    <div className="flex items-end gap-2 mt-1">
-                        <h3 className="text-2xl font-bold text-gray-900">
-                            {attendance.filter(a => a.status === 'on-leave').length}
-                        </h3>
-                        <span className="text-emerald-600 text-xs font-semibold flex items-center mb-1">
-                            <ArrowUpRight size={12} className="mr-0.5" /> +1%
-                        </span>
                     </div>
                 </div>
 

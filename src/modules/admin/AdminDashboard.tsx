@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { LogOut, Users, UserPlus, Clock, Calendar, Menu, TrendingUp, AlertCircle, CheckCircle, XCircle, Search, Filter, Settings, Banknote, Check, X, CalendarDays, FileText, ChevronDown } from 'lucide-react';
+import { LogOut, Users, Clock, Calendar, Menu, TrendingUp, AlertCircle, CheckCircle, XCircle, Search, Filter, Settings, Banknote, Check, X, CalendarDays, FileText, ChevronDown } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { AdminService } from '../../services/adminService';
 import { useNavigate } from 'react-router-dom';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 import { AttendanceView } from './AttendanceView';
-import type { EmployeeProfile, AttendanceRecord, TimeOffRequest, PayrollRecord, SalaryStructure } from '../../types';
+import { EmployeeDirectoryView } from './EmployeeDirectoryView';
+import type { EmployeeProfile, AttendanceRecord, TimeOffRequest } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -19,7 +20,7 @@ export const AdminDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [leaves, setLeaves] = useState<TimeOffRequest[]>([]);
-  const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
+  // Payroll state removed as unused for now
   const [loading, setLoading] = useState(false);
 
   // Computed Stats
@@ -78,8 +79,8 @@ export const AdminDashboard: React.FC = () => {
           setEmployees(emps as EmployeeProfile[]);
         }
       } else if (activeTab === 'payroll') {
-        const data = await AdminService.getAllPayrollRecords();
-        setPayroll(data as PayrollRecord[]);
+        await AdminService.getAllPayrollRecords();
+        // setPayroll(data as PayrollRecord[]); <- Removed unused state
         // We need employees to show the list for Salary Structure updates
         if (employees.length === 0) {
           const emps = await AdminService.getAllEmployees();
@@ -191,24 +192,16 @@ export const AdminDashboard: React.FC = () => {
           <div className="max-w-7xl mx-auto space-y-8">
 
             {/* Header & Stats */}
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Header - Hidden for Employees tab as it has its own internal header */}
+            {activeTab !== 'employees' && (
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 tracking-tight capitalize">{activeTab}</h1>
                   <p className="text-gray-500 mt-1 text-sm font-medium">Overview of your organization's {activeTab}.</p>
                 </div>
-                {activeTab === 'employees' && (
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    <UserPlus size={20} />
-                    Add Employee
-                  </button>
-                )}
+                {/* Add Employee Button Moved to EmployeeDirectoryView */}
               </div>
-
-            </div>
+            )}
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -245,8 +238,14 @@ export const AdminDashboard: React.FC = () => {
               </div>
             ) : (
               <>
-                {/* ATTENDANCE TAB - Full Width Custom View */}
-                {activeTab === 'attendance' ? (
+                {/* EMPLOYEES TAB - New Directory View */}
+                {activeTab === 'employees' ? (
+                  <EmployeeDirectoryView
+                    employees={employees}
+                    onAddEmployee={() => setShowCreateModal(true)}
+                  />
+                ) : activeTab === 'attendance' ? (
+                  /* ATTENDANCE TAB - Full Width Custom View */
                   <AttendanceView
                     employees={employees}
                     attendance={attendance}
@@ -366,58 +365,6 @@ export const AdminDashboard: React.FC = () => {
                         </button>
                       </div>
 
-                      {/* EMPLOYEES TABLE */}
-                      {activeTab === 'employees' && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left">
-                            <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                              <tr>
-                                <th className="px-6 py-4">Employee</th>
-                                <th className="px-6 py-4">Role</th>
-                                <th className="px-6 py-4">Department</th>
-                                <th className="px-6 py-4">Status</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                              {Array.isArray(employees) && employees.length > 0 ? employees.map((emp) => (
-                                <tr key={emp?.id || Math.random()} className="hover:bg-gray-50/80 transition-colors group">
-                                  <td className="px-6 py-4">
-                                    <div className="flex items-center gap-4">
-                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-bold text-sm shadow-inner">
-                                        {getInitials(emp?.firstName, emp?.lastName)}
-                                      </div>
-                                      <div>
-                                        <p className="font-semibold text-gray-900">{emp?.firstName || 'Unknown'} {emp?.lastName || ''}</p>
-                                        <p className="text-xs text-gray-500">{emp?.email || 'No Email'}</p>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-gray-600 font-medium">{emp?.designation || '-'}</td>
-                                  <td className="px-6 py-4">
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
-                                      {emp?.department || '-'}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${emp?.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                      <span className={`w-1.5 h-1.5 rounded-full ${emp?.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                      {emp?.isActive ? 'Active' : 'Inactive'}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 text-right">
-                                    <button className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50">
-                                      <Settings size={18} />
-                                    </button>
-                                  </td>
-                                </tr>
-                              )) : (
-                                <tr><td colSpan={5} className="p-12 text-center text-gray-500">No employees found.</td></tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
 
                       {/* PAYROLL TABLE */}
                       {activeTab === 'payroll' && (
@@ -465,21 +412,19 @@ export const AdminDashboard: React.FC = () => {
             )}
           </div>
         </div>
-      </main >
+      </main>
 
       {/* Modals */}
-      {
-        showCreateModal && (
-          <CreateEmployeeModal
-            onClose={() => setShowCreateModal(false)}
-            onSuccess={() => {
-              fetchData();
-              fetchStats();
-            }}
-          />
-        )
-      }
-    </div >
+      {showCreateModal && (
+        <CreateEmployeeModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            fetchData();
+            fetchStats();
+          }}
+        />
+      )}
+    </div>
   );
 };
 
