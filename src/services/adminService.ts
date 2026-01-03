@@ -49,6 +49,7 @@ export const AdminService = {
                 yearOfJoining: data.yearOfJoining,
                 phoneNumber: data.phoneNumber,
                 companyCode: data.companyCode,
+                ctc: data.ctc,
                 dateOfJoining: new Date().toISOString(),
                 isActive: true, 
                 isRegistered: false, // CTA for Activation

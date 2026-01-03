@@ -14,6 +14,7 @@ export const createEmployeeSchema = z.object({
   designation: z.string().min(1, 'Designation is required'), // Role/Designation matches prompt
   yearOfJoining: z.number().int().min(2000).max(new Date().getFullYear()),
   companyCode: z.string().min(1, 'Employee ID is required'),
+  ctc: z.number().int().min(0).optional(),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
