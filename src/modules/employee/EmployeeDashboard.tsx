@@ -40,13 +40,25 @@ export const EmployeeDashboard: React.FC = () => {
 
   // Helper to get local ISO string for datetime-local
   const getLocalISOString = (date: Date) => {
-    const offset = date.getTimezoneOffset() * 60000;
+    const offset = date.getTimezoneOffset() * 60000; // offset in milliseconds
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
   };
 
   const [checkInTime, setCheckInTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(9, 0, 0, 0))));
   const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(18, 0, 0, 0))));
-  const [displayTime, setDisplayTime] = useState<string>('---');
+  const [displayTime, setDisplayTime] = useState<string>('---'); // For the big display
+
+  // Summary Modal State
+  const [summaryModal, setSummaryModal] = useState<{
+    show: boolean;
+    data: {
+      date: string;
+      checkIn: string;
+      checkOut: string;
+      duration: string;
+      isLate: boolean;
+    } | null;
+  }>({ show: false, data: null });
 
   useEffect(() => {
     let unsubscribeLeaves: (() => void) | undefined;
@@ -73,22 +85,26 @@ export const EmployeeDashboard: React.FC = () => {
             unsubscribeAttendance = EmployeeService.subscribeToAttendance(p.id, (a: AttendanceRecord[]) => {
               setAttendance(a);
               // Update status based on latest attendance
-              const today = new Date().toISOString().split('T')[0];
-              const todayRecord = a.find(rec => rec.date === today);
-              if (todayRecord) {
-                if (todayRecord.checkIn && !todayRecord.checkOut) {
-                  setStatus('clocked-in');
-                  setDisplayTime(new Date(todayRecord.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
-                } else if (todayRecord.checkIn && todayRecord.checkOut) {
-                  setStatus('clocked-out');
-                  setDisplayTime(new Date(todayRecord.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+              if (a.length > 0) {
+                const today = new Date().toISOString().split('T')[0];
+                const todayRecord = a.find(rec => rec.date === today);
+                if (todayRecord) {
+                  if (todayRecord.checkIn && !todayRecord.checkOut) {
+                    setStatus('clocked-in');
+                    const date = new Date(todayRecord.checkIn);
+                    setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
+                  } else {
+                    setStatus('clocked-out');
+                    if (todayRecord.checkOut) {
+                      const date = new Date(todayRecord.checkOut);
+                      setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
+                    }
+                  }
                 } else {
                   setStatus('clocked-out');
-                  setDisplayTime('---');
                 }
               } else {
                 setStatus('clocked-out');
-                setDisplayTime('---');
               }
             });
           }
@@ -104,6 +120,17 @@ export const EmployeeDashboard: React.FC = () => {
     };
   }, [user]);
 
+  // Update clock every minute for display if not overriding (when clocked out)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (status === 'clocked-out') {
+        const now = new Date();
+        setDisplayTime(now.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
+      }
+    }, 60000);
+    return () => clearInterval(timer);
+  }, [status]);
+
   const handleLogout = async () => {
     await AuthService.logout();
     navigate('/login');
@@ -111,23 +138,59 @@ export const EmployeeDashboard: React.FC = () => {
 
   const handleClockIn = async () => {
     if (!profile) return;
+    const date = new Date(checkInTime);
     try {
-      await EmployeeService.clockIn(profile.id, checkInTime);
+      await EmployeeService.clockIn(profile.id, date.toISOString());
       setStatus('clocked-in');
-      setDisplayTime(new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+      setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
     } catch (e) {
-      alert("Failed to clock in");
+      console.error("Clock in failed", e);
     }
   };
 
   const handleClockOut = async () => {
     if (!profile) return;
+    const date = new Date(checkOutTime);
+    const dateStr = date.toISOString().split('T')[0];
+
     try {
-      await EmployeeService.clockOut(profile.id, checkOutTime);
+      await EmployeeService.clockOut(profile.id, date.toISOString());
       setStatus('clocked-out');
-      setDisplayTime(new Date(checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+      setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
+
+      // Prepare data for summary
+      const todayRecord = attendance.find(r => r.date === dateStr);
+      let checkInVal = todayRecord?.checkIn;
+
+      if (!checkInVal) {
+        const rec = await EmployeeService.getTodayAttendance(profile.id);
+        if (rec) checkInVal = rec.checkIn;
+      }
+
+      if (checkInVal) {
+        const start = new Date(checkInVal);
+        const end = date;
+        const diff = end.getTime() - start.getTime();
+        const hours = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+
+        const shiftStart = new Date(start);
+        shiftStart.setHours(9, 15, 0, 0);
+        const isLate = start > shiftStart;
+
+        setSummaryModal({
+          show: true,
+          data: {
+            date: date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+            checkIn: start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            checkOut: end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            duration: `${hours}h ${mins}m`,
+            isLate
+          }
+        });
+      }
     } catch (e) {
-      alert("Failed to clock out");
+      console.error("Clock out failed", e);
     }
   };
 
@@ -329,16 +392,28 @@ export const EmployeeDashboard: React.FC = () => {
                             onChange={(e) => status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value)}
                             className="block w-full sm:w-64 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
                           />
-                        </div>
-                        <div className="flex gap-2 w-full sm:w-auto">
-                          <button
-                            onClick={status === 'clocked-out' ? handleClockIn : handleClockOut}
-                            className={`flex-1 sm:px-8 rounded-lg py-2.5 text-sm font-semibold transition-all shadow-sm ${status === 'clocked-out' ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200'}`}
-                          >
-                            {status === 'clocked-out' ? 'Clock In' : 'Clock Out'}
-                          </button>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            {status === 'clocked-out' ? "Select time and click 'Clock In'" : "Select time and click 'Clock Out'"}
+                          </p>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="mt-6 flex gap-3">
+                      <button
+                        onClick={handleClockIn}
+                        disabled={status === 'clocked-in'}
+                        className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${status === 'clocked-in' ? 'bg-emerald-50 text-emerald-600 opacity-50 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
+                      >
+                        Clock In
+                      </button>
+                      <button
+                        onClick={handleClockOut}
+                        disabled={status === 'clocked-out'}
+                        className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${status === 'clocked-out' ? 'bg-rose-50 text-rose-600 opacity-50 cursor-not-allowed' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}`}
+                      >
+                        Clock Out
+                      </button>
                     </div>
                   </div>
 
@@ -444,28 +519,66 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                    <h3 className="text-base font-semibold text-slate-900 mb-6 uppercase tracking-wider text-xs text-slate-400">Recent Activity</h3>
+                    <h3 className="text-base font-semibold text-slate-900 mb-6 uppercase tracking-wider text-xs text-slate-400 font-display">Recent Activity</h3>
                     <div className="flow-root">
                       <ul role="list" className="-mb-8">
                         {(() => {
-                          const acts = [
+                          const allActivities = [
                             ...attendance.flatMap(a => {
                               const arr = [];
                               if (a.checkIn) arr.push({ time: a.checkIn, label: 'Clocked In', color: 'bg-emerald-500' });
                               if (a.checkOut) arr.push({ time: a.checkOut, label: 'Clocked Out', color: 'bg-rose-500' });
                               return arr;
                             }),
-                            ...requests.map(r => ({ time: r.appliedAt || r.startDate, label: `Applied for ${r.type}`, color: 'bg-blue-500' }))
+                            ...requests.flatMap(r => {
+                              const acts = [];
+                              acts.push({
+                                time: r.appliedAt || r.startDate,
+                                label: `Applied for ${r.type.charAt(0).toUpperCase() + r.type.slice(1)} Leave`,
+                                color: 'bg-blue-500'
+                              });
+                              if (r.status !== 'pending' && r.reviewedAt) {
+                                acts.push({
+                                  time: r.reviewedAt,
+                                  label: `Leave Request ${r.status === 'approved' ? 'Accepted' : 'Declined'}`,
+                                  color: r.status === 'approved' ? 'bg-emerald-500' : 'bg-rose-500'
+                                });
+                              }
+                              return acts;
+                            })
                           ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
 
-                          return acts.map((act, i) => (
-                            <li key={i} className="relative pb-8">
-                              {i !== acts.length - 1 && <span className="absolute left-1.5 top-1.5 -ml-px h-full w-0.5 bg-slate-100" />}
-                              <div className="relative flex items-start gap-3">
-                                <div className={`mt-1.5 size-3 rounded-full ${act.color} ring-4 ring-white shrink-0`} />
-                                <div>
-                                  <p className="text-sm font-semibold text-slate-900">{act.label}</p>
-                                  <p className="text-xs text-slate-500 mt-1">{new Date(act.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          const formatActivityTime = (dateStr: string) => {
+                            const date = new Date(dateStr);
+                            const now = new Date();
+                            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            const activityDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+                            const diffDays = Math.round((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
+                            const timePart = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                            if (diffDays === 0) return `Today, ${timePart}`;
+                            if (diffDays === 1) return `Yesterday, ${timePart}`;
+
+                            return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timePart}`;
+                          };
+
+                          return allActivities.map((activity, idx) => (
+                            <li key={idx}>
+                              <div className="relative pb-8">
+                                {idx !== allActivities.length - 1 && (
+                                  <span className="absolute left-1.5 top-1.5 -ml-px h-full w-0.5 bg-slate-100" aria-hidden="true" />
+                                )}
+                                <div className="relative flex items-start gap-3">
+                                  <div className={`mt-1.5 size-3 rounded-full ${activity.color} ring-4 ring-white shadow-sm shrink-0`} />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-slate-900 leading-none">
+                                      {activity.label}
+                                    </p>
+                                    <p className="mt-1.5 text-xs text-slate-500 font-display">
+                                      {formatActivityTime(activity.time)}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
                             </li>
@@ -480,6 +593,59 @@ export const EmployeeDashboard: React.FC = () => {
           )}
         </main>
       </div>
+
+      {/* Clock Out Summary Modal */}
+      {summaryModal.show && summaryModal.data && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-blue-600 p-6 text-center text-white">
+              <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-md">
+                <CheckCircle size={32} className="text-white" />
+              </div>
+              <h3 className="text-xl font-bold">Session Recorded!</h3>
+              <p className="text-blue-100 text-sm mt-1">{summaryModal.data.date}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                <span className="text-slate-500 text-sm">Total Work Hours</span>
+                <span className="text-xl font-bold text-slate-900">{summaryModal.data.duration}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-3 rounded-lg text-center">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Check In</p>
+                  <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkIn}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg text-center">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide">Check Out</p>
+                  <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkOut}</p>
+                </div>
+              </div>
+
+              <div className={`p-3 rounded-lg flex items-center justify-center gap-2 ${summaryModal.data.isLate ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                {summaryModal.data.isLate ? (
+                  <>
+                    <Clock size={18} />
+                    <span className="font-medium">Late Arrival</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={18} />
+                    <span className="font-medium">On Time</span>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => setSummaryModal({ show: false, data: null })}
+                className="w-full bg-slate-900 text-white rounded-xl py-3 text-sm font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all"
+              >
+                Great!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

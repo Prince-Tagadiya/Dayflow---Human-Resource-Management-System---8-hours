@@ -38,6 +38,23 @@ export const EmployeeService = {
     }
   },
 
+  // Fetch Attendance History
+  getAttendanceHistory: async (employeeId: string) => {
+    try {
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        orderBy('date', 'desc'),
+        limit(30)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+      return [];
+    }
+  },
+
   // Real-time listener for Attendance
   subscribeToAttendance: (employeeId: string, callback: (records: AttendanceRecord[]) => void) => {
     const q = query(
@@ -125,23 +142,6 @@ export const EmployeeService = {
 
     } catch (error) {
       console.error("Error fetching monthly attendance:", error);
-      return [];
-    }
-  },
-
-  // Fetch Attendance History (Legacy or fallback)
-  getAttendanceHistory: async (employeeId: string) => {
-    try {
-      const q = query(
-        collection(db, 'attendance'),
-        where('employeeId', '==', employeeId),
-        orderBy('date', 'desc'),
-        limit(30)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
-    } catch (error) {
-      console.error("Error fetching attendance:", error);
       return [];
     }
   },
@@ -247,15 +247,12 @@ export const EmployeeService = {
     }
   },
 
-  // NEW: Real Attendance Tracking
-  clockIn: async (employeeId: string, customTime?: string) => {
+  // Real Attendance Tracking
+  clockIn: async (employeeId: string, time?: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      let checkInTime = new Date().toISOString();
-
-      if (customTime) {
-        checkInTime = new Date(customTime).toISOString();
-      }
+      // Use provided time (ISO) or current time
+      const checkInTime = time || new Date().toISOString();
 
       // Check if record exists for today
       const q = query(
@@ -285,14 +282,10 @@ export const EmployeeService = {
     }
   },
 
-  clockOut: async (employeeId: string, customTime?: string) => {
+  clockOut: async (employeeId: string, time?: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      let checkOutTime = new Date().toISOString();
-
-      if (customTime) {
-        checkOutTime = new Date(customTime).toISOString();
-      }
+      const checkOutTime = time || new Date().toISOString();
 
       const q = query(
         collection(db, 'attendance'),
@@ -324,13 +317,12 @@ export const EmployeeService = {
       const q = query(
         collection(db, 'attendance'),
         where('employeeId', '==', employeeId),
-        where('date', '==', today)
+        where('date', '==', today),
+        limit(1)
       );
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
-        // Return first one, or latest by checkIn
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
-        return data.sort((a, b) => new Date(b.checkIn || '').getTime() - new Date(a.checkIn || '').getTime())[0];
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as AttendanceRecord;
       }
       return null;
     } catch (error) {
