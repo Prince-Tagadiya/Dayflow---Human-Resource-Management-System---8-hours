@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import type { EmployeeProfile, AttendanceRecord } from '../../types';
 
 interface EmployeeDirectoryViewProps {
@@ -67,59 +67,55 @@ export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ em
                     <h1 className="text-2xl font-bold text-slate-900">All Employees</h1>
                     <p className="text-sm text-slate-500 mt-1">Manage your team members and permissions.</p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                    <div className="relative w-full md:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                        <input
-                            className="w-full bg-white border border-slate-200 rounded-lg h-10 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 placeholder:text-slate-400 transition-all"
-                            placeholder="Search employees..."
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <button
-                        onClick={onAddEmployee}
-                        className="flex items-center justify-center gap-2 px-4 h-10 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-500/20 transition-all active:scale-95 whitespace-nowrap"
-                    >
-                        <Plus size={20} />
-                        <span>New Employee</span>
-                    </button>
-                </div>
+                <button
+                    onClick={onAddEmployee}
+                    className="flex items-center justify-center gap-2 px-4 h-10 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm shadow-blue-500/20 transition-all active:scale-95 whitespace-nowrap"
+                >
+                    <Plus size={20} />
+                    <span>New Employee</span>
+                </button>
             </div>
 
-            {/* Filter Tabs */}
-            <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-slate-200">
-                <div className="flex items-center gap-6 text-sm">
-                    <button
-                        onClick={() => setActiveTab('all')}
-                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'all' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        All <span className="ml-1 text-slate-400 font-normal">{stats.all}</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('present')}
-                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'present' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        Present <span className="ml-1 text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">{stats.present}</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('on_leave')}
-                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'on_leave' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        On Leave <span className="ml-1 text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full">{stats.onLeave}</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('absent')}
-                        className={`font-medium pb-2.5 -mb-2.5 transition-colors ${activeTab === 'absent' ? 'text-slate-900 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
-                    >
-                        Absent <span className="ml-1 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded-full">{stats.absent}</span>
-                    </button>
+            {/* Filter Bar */}
+            <div className="flex flex-wrap items-center gap-4 py-4 bg-white rounded-xl border border-slate-200 px-4">
+                {/* Search Input */}
+                <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                        className="w-full bg-transparent border-none h-10 pl-10 pr-4 text-sm focus:outline-none placeholder:text-slate-400"
+                        placeholder="Search employee..."
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
-                <div className="flex items-center gap-2">
-                    <button className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors">
-                        <Filter size={20} />
-                    </button>
+
+                {/* Date Picker */}
+                <div className="relative">
+                    <input
+                        type="date"
+                        className="h-10 px-4 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white min-w-[180px]"
+                        placeholder="dd-mm-yyyy"
+                    />
+                </div>
+
+                {/* Status Dropdown */}
+                <div className="relative">
+                    <select
+                        value={activeTab}
+                        onChange={(e) => setActiveTab(e.target.value as 'all' | 'present' | 'on_leave' | 'absent')}
+                        className="h-10 px-4 pr-10 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white appearance-none cursor-pointer min-w-[130px]"
+                    >
+                        <option value="all">All Status</option>
+                        <option value="present">Present</option>
+                        <option value="on_leave">On Leave</option>
+                        <option value="absent">Absent</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
                 </div>
             </div>
 

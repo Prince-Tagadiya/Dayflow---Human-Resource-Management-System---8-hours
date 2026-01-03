@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Search, Download, Edit3, MoreVertical,
+    Search, MoreVertical,
     Calendar as CalendarIcon, ChevronDown, Users,
     Clock, AlertCircle, CheckCircle, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
@@ -193,19 +193,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ employees, atten
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                         </div>
                     </div>
-                </div>
-
-                <div className="flex gap-3 w-full md:w-auto justify-end">
-                    <button className="flex items-center gap-2 h-10 px-4 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all">
-                        <Download size={18} />
-                        Export
-                    </button>
-                    <button
-                        onClick={handleBulkEdit}
-                        className="flex items-center gap-2 h-10 px-4 text-white bg-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all">
-                        <Edit3 size={18} />
-                        Bulk Edit
-                    </button>
                 </div>
             </div>
 
