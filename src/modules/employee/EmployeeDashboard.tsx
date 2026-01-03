@@ -88,7 +88,7 @@ export const EmployeeDashboard: React.FC = () => {
   return (
     <div className="flex h-screen w-full bg-[#f6f6f8] text-slate-800 font-sans overflow-hidden">
       {/* Sidebar Navigation */}
-      <aside className={`fixed inset-y-0 left-0 bg-white border-r border-slate-200 z-30 w-64 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col`}>
+      <aside className={`fixed inset-y-0 left-0 bg-white border-r border-slate-200 z-30 w-64 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col h-screen`}>
         <div className="flex h-16 items-center gap-3 px-6 border-b border-slate-100">
           <div className="size-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
             D
@@ -215,8 +215,8 @@ export const EmployeeDashboard: React.FC = () => {
               {/* Left Column (Main Data) */}
               <div className="flex flex-col gap-6 lg:col-span-8">
                 
-                {/* Attendance Section */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {/* Attendance Section - Full Width */}
+                <div className="flex flex-col gap-6">
                   
                   {/* Clock In/Out Card */}
                   <div className="relative overflow-hidden rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
@@ -241,16 +241,18 @@ export const EmployeeDashboard: React.FC = () => {
 
                     {/* EDITABLE TIME SIMULATION SECTION */}
                     {status === 'clocked-out' && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                             <label className="block text-xs font-semibold text-blue-800 mb-1">Set Simulation Time</label>
-                             <div className="flex gap-2">
-                                <input 
-                                    type="time" 
-                                    value={checkInTime} 
-                                    onChange={(e) => setCheckInTime(e.target.value)}
-                                    className="block w-full rounded-md border-slate-300 py-1.5 text-sm font-mono shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                />
-                                <span className="text-xs text-blue-600 self-center whitespace-nowrap">Press Clock In to verify</span>
+                        <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                                <div className="flex flex-col gap-1 w-full sm:w-auto">
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Set Simulation Time</label>
+                                    <input 
+                                        type="time" 
+                                        value={checkInTime} 
+                                        onChange={(e) => setCheckInTime(e.target.value)}
+                                        className="block w-full sm:w-40 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
+                                    />
+                                    <p className="text-[10px] text-slate-400 mt-1">Select a time and click 'Clock In' below to verify.</p>
+                                </div>
                              </div>
                         </div>
                     )}
@@ -273,23 +275,6 @@ export const EmployeeDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Weekly Stats Chart */}
-                  <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-sm font-medium text-slate-900">Weekly Activity</h3>
-                      <span className="text-xs text-slate-500">42h Worked</span>
-                    </div>
-                    <div className="flex h-24 items-end justify-between gap-2">
-                      {['M', 'T', 'W', 'T', 'F'].map((day, i) => (
-                          <div key={i} className="flex w-full flex-col items-center gap-1">
-                            <div 
-                                className={`w-full max-w-[24px] rounded-t-sm transition-colors ${i === 2 ? 'bg-blue-600' : 'bg-slate-100'}`} 
-                                style={{ height: `${[60, 80, 45, 100, 100][i]}%` }}
-                             ></div>
-                            <span className={`text-[10px] ${i === 2 ? 'font-bold text-slate-900' : 'text-slate-400'}`}>{day}</span>
-                          </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
 
@@ -409,27 +394,9 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Activity Timeline */}
-                <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                  <h3 className="mb-4 text-base font-semibold text-slate-900">Recent Activity</h3>
-                  <div className="relative ml-2 space-y-6 border-l border-slate-200">
-                    <div className="relative ml-6">
-                      <span className="absolute -left-[31px] flex size-4 items-center justify-center rounded-full bg-slate-100 ring-4 ring-white">
-                        <span className="size-2 rounded-full bg-emerald-500"></span>
-                      </span>
-                      <p className="text-sm font-medium text-slate-900">Clocked In</p>
-                      <p className="text-xs text-slate-500">Today, {displayTime}</p>
-                    </div>
-                    <div className="relative ml-6">
-                       <span className="absolute -left-[31px] flex size-4 items-center justify-center rounded-full bg-slate-100 ring-4 ring-white">
-                        <span className="size-2 rounded-full bg-blue-600"></span>
-                      </span>
-                      <p className="text-sm font-medium text-slate-900">Applied for Sick Leave</p>
-                      <p className="text-xs text-slate-500">Yesterday, 04:30 PM</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+
+                {/* Activity Timeline REMOVED */}
+               </div>
 
             </div>
           </div>
