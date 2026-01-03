@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Plane } from 'lucide-react';
 import type { EmployeeProfile, AttendanceRecord } from '../../types';
 
 interface EmployeeDirectoryViewProps {
@@ -143,7 +143,13 @@ export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ em
                         >
                             {/* Status Indicator */}
                             <div className="absolute top-4 right-4" title={statusTitle}>
-                                <span className={`flex h-3 w-3 rounded-full ${statusColor}`}></span>
+                                {status === 'on_leave' ? (
+                                    <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                                        <Plane size={14} className="text-amber-600" />
+                                    </div>
+                                ) : (
+                                    <span className={`flex h-3 w-3 rounded-full ${statusColor}`}></span>
+                                )}
                             </div>
 
                             {/* Avatar */}

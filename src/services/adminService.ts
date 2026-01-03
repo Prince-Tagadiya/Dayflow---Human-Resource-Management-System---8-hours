@@ -48,8 +48,7 @@ export const AdminService = {
                 designation: data.designation,
                 yearOfJoining: data.yearOfJoining,
                 phoneNumber: data.phoneNumber,
-                companyCode: data.companyCode,
-                ctc: data.ctc,
+                companyCode: loginId, // Use the generated ID as the company code
                 dateOfJoining: new Date().toISOString(),
                 isActive: true, 
                 isRegistered: false, // CTA for Activation

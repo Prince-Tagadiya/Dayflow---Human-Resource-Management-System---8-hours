@@ -45,7 +45,7 @@ export const EmployeeDashboard: React.FC = () => {
   });
 
   // State for Check-In/Out Simulation
-  const [status, setStatus] = useState<'clocked-in' | 'clocked-out'>('clocked-out');
+  const [status, setStatus] = useState<'clocked-in' | 'clocked-out' | 'loading'>('loading');
 
   // Helper to get local ISO string for datetime-local
   const getLocalISOString = (date: Date) => {
@@ -57,6 +57,14 @@ export const EmployeeDashboard: React.FC = () => {
   const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date()));
   const [isManualTime, setIsManualTime] = useState(false);
   const [displayTime, setDisplayTime] = useState<string>('---');
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{show: boolean, message: string, type: 'success' | 'error'}>({show: false, message: '', type: 'success'});
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({show: true, message, type});
+    setTimeout(() => setToast({show: false, message: '', type: 'success'}), 4000);
+  };
 
   // Keep simulation times synced with real-time unless manually edited
   useEffect(() => {
@@ -182,8 +190,10 @@ export const EmployeeDashboard: React.FC = () => {
       await EmployeeService.clockIn(profile.id, date.toISOString());
       setStatus('clocked-in');
       setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
+      showToast(`✅ Clocked In at ${date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`, 'success');
     } catch (e) {
       console.error("Clock in failed", e);
+      showToast('❌ Clock In failed. Please try again.', 'error');
     }
   };
 
@@ -192,18 +202,14 @@ export const EmployeeDashboard: React.FC = () => {
     const date = new Date(checkOutTime);
 
     try {
-      await EmployeeService.clockOut(profile.id, date.toISOString());
+      // clockOut now returns the full attendance record
+      const record = await EmployeeService.clockOut(profile.id, date.toISOString());
       setStatus('clocked-out');
       setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
 
-      // Find the checkIn for the session we just closed
-      // Since it's real-time, it might not be in 'attendance' state yet or might be the first one
-      const rec = await EmployeeService.getTodayAttendance(profile.id);
-      let checkInVal = rec?.checkIn;
-
-      if (checkInVal) {
-        const start = new Date(checkInVal);
-        const end = date;
+      if (record && record.checkIn) {
+        const start = new Date(record.checkIn);
+        const end = new Date(record.checkOut || date.toISOString());
         const diff = end.getTime() - start.getTime();
         const hours = Math.floor(diff / 3600000);
         const mins = Math.floor((diff % 3600000) / 60000);
@@ -211,6 +217,8 @@ export const EmployeeDashboard: React.FC = () => {
         const shiftStart = new Date(start);
         shiftStart.setHours(9, 15, 0, 0);
         const isLate = start > shiftStart;
+
+        showToast(`✅ Clocked Out! Total: ${hours}h ${mins}m`, 'success');
 
         setSummaryModal({
           show: true,
@@ -222,9 +230,12 @@ export const EmployeeDashboard: React.FC = () => {
             isLate
           }
         });
+      } else {
+        showToast(`✅ Clocked Out at ${date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`, 'success');
       }
     } catch (e) {
       console.error("Clock out failed", e);
+      showToast('❌ Clock Out failed. Please try again.', 'error');
     }
   };
 
@@ -328,22 +339,31 @@ export const EmployeeDashboard: React.FC = () => {
 
           <div className="flex items-center gap-3 sm:gap-6">
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleClockIn}
-                disabled={status === 'clocked-in'}
-                className={`hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm ${status === 'clocked-in' ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 shadow-emerald-100'}`}
-              >
-                <Clock size={16} />
-                Clock In
-              </button>
-              <button
-                onClick={handleClockOut}
-                disabled={status === 'clocked-out'}
-                className={`hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm ${status === 'clocked-out' ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-rose-50 text-rose-600 hover:bg-rose-100 shadow-rose-100'}`}
-              >
-                <LogOut size={16} />
-                Clock Out
-              </button>
+              {status === 'loading' ? (
+                <div className="hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold bg-slate-100 text-slate-400">
+                  <span className="animate-spin size-4 border-2 border-slate-300 border-t-slate-600 rounded-full" />
+                  Loading...
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={handleClockIn}
+                    disabled={status === 'clocked-in'}
+                    className={`hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm ${status === 'clocked-in' ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 shadow-emerald-100'}`}
+                  >
+                    <Clock size={16} />
+                    Clock In
+                  </button>
+                  <button
+                    onClick={handleClockOut}
+                    disabled={status === 'clocked-out'}
+                    className={`hidden sm:flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold transition-all shadow-sm ${status === 'clocked-out' ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-rose-50 text-rose-600 hover:bg-rose-100 shadow-rose-100'}`}
+                  >
+                    <LogOut size={16} />
+                    Clock Out
+                  </button>
+                </>
+              )}
             </div>
             <div className="relative">
               <button onClick={() => setShowNotifications(!showNotifications)} className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none">
@@ -417,7 +437,16 @@ export const EmployeeDashboard: React.FC = () => {
               initialWage={profile?.ctc || 50000 * 12}
               allowEdit={false}
               employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
-              employeeId={profile?.companyCode || '---'}
+              employeeId={(() => {
+                const id = profile?.companyCode || profile?.id;
+                if (id && id.length <= 3 && profile?.firstName && profile?.lastName) {
+                  const f2 = profile.firstName.substring(0, 2).toUpperCase();
+                  const l2 = profile.lastName.substring(0, 2).toUpperCase();
+                  const year = profile.dateOfJoining ? new Date(profile.dateOfJoining).getFullYear() : new Date().getFullYear();
+                  return `${id}${f2}${l2}${year}0001`;
+                }
+                return id || '---';
+              })()}
               designation={profile?.designation}
               department={profile?.department}
             />
@@ -435,7 +464,7 @@ export const EmployeeDashboard: React.FC = () => {
               balances={balances}
               onCancel={() => setView('dashboard')}
               onSuccess={() => {
-                alert("Leave application submitted successfully!");
+                showToast("✅ Leave application submitted successfully!", 'success');
                 setView('dashboard');
               }}
             />
@@ -579,7 +608,16 @@ export const EmployeeDashboard: React.FC = () => {
                       )}
                       <div>
                         <h3 className="text-lg font-bold text-slate-900 leading-tight">{profile?.firstName} {profile?.lastName}</h3>
-                        <p className="text-sm font-medium text-slate-500 mt-0.5">ID: {profile?.id || '---'}</p>
+                        <p className="text-sm font-medium text-slate-500 mt-0.5">ID: {(() => {
+                          const id = profile?.companyCode || profile?.id;
+                          if (id && id.length <= 3 && profile?.firstName && profile?.lastName) {
+                            const f2 = profile.firstName.substring(0, 2).toUpperCase();
+                            const l2 = profile.lastName.substring(0, 2).toUpperCase();
+                            const year = profile.dateOfJoining ? new Date(profile.dateOfJoining).getFullYear() : new Date().getFullYear();
+                            return `${id}${f2}${l2}${year}0001`;
+                          }
+                          return id || '---';
+                        })()}</p>
                         <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
                           <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active
                         </span>
@@ -775,6 +813,22 @@ export const EmployeeDashboard: React.FC = () => {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-6 right-6 z-[100] animate-in slide-in-from-bottom-4 fade-in duration-300 max-w-sm`}>
+          <div className={`flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl border ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+            <span className="text-lg">{toast.type === 'success' ? '✅' : '❌'}</span>
+            <p className="text-sm font-bold">{toast.message}</p>
+            <button 
+              onClick={() => setToast({show: false, message: '', type: 'success'})}
+              className="ml-auto text-slate-400 hover:text-slate-600"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
       )}

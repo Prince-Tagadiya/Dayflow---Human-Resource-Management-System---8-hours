@@ -11,7 +11,7 @@ interface CreateEmployeeModalProps {
 }
 
 export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClose, onSuccess }) => {
-  const { register, handleSubmit, formState: { errors } } = useForm<CreateEmployeeFormData>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<CreateEmployeeFormData>({
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: {
       yearOfJoining: new Date().getFullYear(),
@@ -22,6 +22,17 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
   const [createdCredentials, setCreatedCredentials] = useState<{ loginId: string } | null>(null);
   const [createdEmail, setCreatedEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const firstName = watch('firstName');
+  const lastName = watch('lastName');
+  const yearOfJoining = watch('yearOfJoining');
+
+  const getEmployeeIdPreview = () => {
+    const f2 = (firstName?.substring(0, 2) || 'XX').toUpperCase();
+    const l2 = (lastName?.substring(0, 2) || 'XX').toUpperCase();
+    const year = yearOfJoining || new Date().getFullYear();
+    return `OI${f2}${l2}${year}XXXX`;
+  };
 
   const onSubmit = async (data: CreateEmployeeFormData) => {
     try {
@@ -80,19 +91,34 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                 Please share these credentials with the employee securely. The password is temporary and must be changed on first login.
               </p>
 
-              <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 max-w-md mx-auto space-y-4 text-left">
-                <div>
-                  <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Login ID</label>
-                  <div className="flex items-center justify-between mt-1">
-                    <code className="text-lg font-mono font-bold text-gray-900">{createdCredentials.loginId}</code>
-                    <button onClick={() => copyToClipboard(createdCredentials.loginId)} className="text-blue-600 hover:text-blue-700 p-1">
-                      <Copy size={16} />
+              {/* Prominent ID Display */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl border-2 border-blue-200 max-w-md mx-auto space-y-4">
+                <div className="text-center">
+                  <label className="text-xs font-semibold text-blue-500 uppercase tracking-wider">Generated Employee ID</label>
+                  <div className="flex items-center justify-center gap-3 mt-2">
+                    <code className="text-2xl font-mono font-bold text-blue-900 bg-white px-4 py-2 rounded-lg border border-blue-200 shadow-sm">
+                      {createdCredentials.loginId}
+                    </code>
+                    <button 
+                      onClick={() => copyToClipboard(createdCredentials.loginId)} 
+                      className="bg-blue-100 hover:bg-blue-200 text-blue-700 p-2 rounded-lg transition-colors"
+                      title="Copy to clipboard"
+                    >
+                      <Copy size={18} />
                     </button>
                   </div>
                 </div>
                 
-                {/* Temp Password removed - User sets password during activation */}
+                <div className="text-center pt-2 border-t border-blue-100">
+                  <p className="text-sm text-gray-600">
+                    Email: <span className="font-medium text-gray-900">{createdEmail}</span>
+                  </p>
+                </div>
               </div>
+
+              <p className="text-sm text-amber-700 bg-amber-50 px-4 py-3 rounded-lg max-w-md mx-auto">
+                ⚠️ This ID will be sent to the employee via email. They will use it to activate their account.
+              </p>
 
               <div className="pt-4 flex justify-end">
                 <button
@@ -152,9 +178,13 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Employee ID</label>
-                  <input {...register('companyCode')} placeholder="e.g. EMP001" className="input-field" />
-                  {errors.companyCode && <p className="error-text">{errors.companyCode.message}</p>}
+                  <label className="text-sm font-medium text-gray-700">Employee ID (Auto-generated)</label>
+                  <input 
+                    value={getEmployeeIdPreview()}
+                    readOnly
+                    className="input-field bg-gray-50 text-gray-500 cursor-not-allowed font-mono"
+                  />
+                  <p className="text-xs text-gray-400">ID will be generated automatically upon creation.</p>
                 </div>
 
                 <div className="space-y-2">

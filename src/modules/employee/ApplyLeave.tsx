@@ -50,13 +50,11 @@ export const ApplyLeave: React.FC<ApplyLeaveProps> = ({ profile, onCancel, onSuc
     setLoading(true);
 
     try {
-      await EmployeeService.applyLeave({
-        employeeId: profile.id,
+      await EmployeeService.applyLeave(profile.id, {
         type: formData.type as any,
         startDate: formData.startDate,
         endDate: formData.endDate,
         reason: formData.reason,
-        // appliedAt handled by service
       });
       onSuccess();
     } catch (error) {

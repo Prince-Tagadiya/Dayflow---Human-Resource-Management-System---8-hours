@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { BootstrapMakeAdmin } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import { seedDatabase } from '../../utils/seedData';
 
 export const SetupAdmin: React.FC = () => {
     const [loading, setLoading] = useState(false);
@@ -17,6 +18,20 @@ export const SetupAdmin: React.FC = () => {
             setResult(res);
         } catch (err: any) {
             setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSeed = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const count = await seedDatabase();
+            alert(`Successfully seeded ${count} documents!`);
+        } catch (err: any) {
+            console.error(err);
+            setError("Seeding failed: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -49,6 +64,23 @@ export const SetupAdmin: React.FC = () => {
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : "Create Master Admin"}
+                        </button>
+
+                        <div className="relative my-4">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-gray-200"></div>
+                            </div>
+                            <div className="relative flex justify-center text-sm">
+                                <span className="px-2 bg-white text-gray-500">Development Tools</span>
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={handleSeed}
+                            disabled={loading}
+                            className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium py-3 rounded-lg transition-colors flex items-center justify-center border border-indigo-200"
+                        >
+                            {loading ? <Loader2 className="animate-spin" /> : "Seed Fake Database Data"}
                         </button>
                     </>
                 ) : (

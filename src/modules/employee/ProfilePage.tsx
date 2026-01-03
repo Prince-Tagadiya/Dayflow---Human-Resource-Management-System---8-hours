@@ -150,7 +150,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onBack, onSav
                                 <p className="text-blue-600 font-medium">{formData.designation || 'Employee'}</p>
                                 <p className="text-slate-500 text-sm mt-1 flex items-center justify-center sm:justify-start gap-1 font-mono font-bold">
                                     <Briefcase size={14} className="text-slate-400" />
-                                    ID: {profile?.id || '---'}
+                                    ID: {(() => {
+                                        const id = profile?.companyCode || profile?.loginId || (profile as any)?.employeeId || profile?.id;
+                                        // If ID only has company prefix (like 'OI'), generate a display ID
+                                        if (id && id.length <= 3 && profile?.firstName && profile?.lastName) {
+                                            const f2 = profile.firstName.substring(0, 2).toUpperCase();
+                                            const l2 = profile.lastName.substring(0, 2).toUpperCase();
+                                            const year = profile.dateOfJoining ? new Date(profile.dateOfJoining).getFullYear() : new Date().getFullYear();
+                                            return `${id}${f2}${l2}${year}0001`;
+                                        }
+                                        return id || '---';
+                                    })()}
                                 </p>
                             </div>
                         </div>
@@ -278,17 +288,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onBack, onSav
                                     </label>
                                 </div>
 
-                                <label className="flex flex-col gap-2">
-                                    <span className="text-sm font-medium text-slate-700">Profile Picture URL</span>
+                                <label className="flex flex-col gap-2 opacity-90">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-slate-700">Profile Picture URL</span>
+                                        <Lock size={12} className="text-slate-400" />
+                                    </div>
                                     <input
                                         type="url"
                                         name="photoURL"
                                         value={formData.photoURL}
-                                        onChange={handleInputChange}
+                                        readOnly
                                         placeholder="https://example.com/photo.jpg"
-                                        className="w-full rounded-lg border border-blue-100 bg-white text-slate-900 h-11 px-4 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+                                        className="w-full rounded-lg border border-slate-200 bg-slate-50 text-slate-500 h-11 px-4 outline-none cursor-not-allowed"
                                     />
-                                    <span className="text-xs text-slate-400">Paste a direct image link to update your profile photo.</span>
+                                    <span className="text-xs text-slate-400">Contact HR to update your profile photo.</span>
                                 </label>
 
                                 <label className="flex flex-col gap-2">
@@ -360,7 +373,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ profile, onBack, onSav
                                 {/* Employee ID - Always Root Source */}
                                 <div className="p-4 rounded-xl bg-slate-900 text-white shadow-lg ring-4 ring-slate-100 border border-slate-800">
                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Official Employee ID</p>
-                                    <p className="font-mono text-lg font-bold tracking-tight">{profile?.id || '---'}</p>
+                                    <p className="font-mono text-lg font-bold tracking-tight">{(() => {
+                                        const id = profile?.companyCode || profile?.loginId || (profile as any)?.employeeId || profile?.id;
+                                        // If ID only has company prefix (like 'OI'), generate a display ID
+                                        if (id && id.length <= 3 && profile?.firstName && profile?.lastName) {
+                                            const f2 = profile.firstName.substring(0, 2).toUpperCase();
+                                            const l2 = profile.lastName.substring(0, 2).toUpperCase();
+                                            const year = profile.dateOfJoining ? new Date(profile.dateOfJoining).getFullYear() : new Date().getFullYear();
+                                            return `${id}${f2}${l2}${year}0001`;
+                                        }
+                                        return id || '---';
+                                    })()}</p>
                                 </div>
 
                                 <div className="space-y-4">

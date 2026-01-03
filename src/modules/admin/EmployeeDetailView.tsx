@@ -10,7 +10,7 @@ interface EmployeeDetailViewProps {
     onUpdate?: (employee: EmployeeProfile) => void;
 }
 
-type TabType = 'resume' | 'private' | 'salary' | 'admin' | 'security';
+type TabType = 'resume' | 'private' | 'salary';
 
 export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee, onBack, onUpdate }) => {
     const [activeTab, setActiveTab] = useState<TabType>('salary');
@@ -118,8 +118,6 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
         { id: 'resume', label: 'Resume' },
         { id: 'private', label: 'Private Info' },
         { id: 'salary', label: 'Salary Info' },
-        { id: 'admin', label: 'Admin Only' },
-        { id: 'security', label: 'Security' },
     ];
 
     return (
@@ -768,19 +766,7 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                         </div>
                     )}
 
-                    {activeTab === 'admin' && (
-                        <div className="bg-white rounded-xl border border-slate-200 p-6">
-                            <h2 className="text-lg font-bold text-slate-900 mb-4">Admin Only</h2>
-                            <p className="text-slate-500">Admin-only settings and configurations.</p>
-                        </div>
-                    )}
 
-                    {activeTab === 'security' && (
-                        <div className="bg-white rounded-xl border border-slate-200 p-6">
-                            <h2 className="text-lg font-bold text-slate-900 mb-4">Security Settings</h2>
-                            <p className="text-slate-500">Security and access management options.</p>
-                        </div>
-                    )}
                 </div>
 
                 {/* Sidebar */}
