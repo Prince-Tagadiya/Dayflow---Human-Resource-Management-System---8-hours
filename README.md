@@ -310,14 +310,50 @@ VITE_FIREBASE_APP_ID=your_app_id
 
 ---
 
-## 👨‍💻 Author
+## � Team
 
 <div align="center">
 
-**Prince Tagadiya**
-
-[![GitHub](https://img.shields.io/badge/GitHub-Prince--Tagadiya-181717?style=for-the-badge&logo=github)](https://github.com/Prince-Tagadiya)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=for-the-badge&logo=linkedin)](https://linkedin.com/in/prince-tagadiya)
+<table>
+<tr>
+<td align="center">
+<a href="https://github.com/Prince-Tagadiya">
+<img src="https://github.com/Prince-Tagadiya.png" width="100px;" alt="Prince Tagadiya"/><br />
+<sub><b>Prince Tagadiya</b></sub>
+</a><br />
+<a href="https://github.com/Prince-Tagadiya">
+<img src="https://img.shields.io/badge/-Prince--Tagadiya-181717?style=flat-square&logo=github" alt="GitHub"/>
+</a>
+</td>
+<td align="center">
+<a href="https://github.com/CHAUHANRUDRA24">
+<img src="https://github.com/CHAUHANRUDRA24.png" width="100px;" alt="Rudra Chauhan"/><br />
+<sub><b>Rudra Chauhan</b></sub>
+</a><br />
+<a href="https://github.com/CHAUHANRUDRA24">
+<img src="https://img.shields.io/badge/-CHAUHANRUDRA24-181717?style=flat-square&logo=github" alt="GitHub"/>
+</a>
+</td>
+<td align="center">
+<a href="https://github.com/Khushi-S-Belani">
+<img src="https://github.com/Khushi-S-Belani.png" width="100px;" alt="Khushi Belani"/><br />
+<sub><b>Khushi Belani</b></sub>
+</a><br />
+<a href="https://github.com/Khushi-S-Belani">
+<img src="https://img.shields.io/badge/-Khushi--S--Belani-181717?style=flat-square&logo=github" alt="GitHub"/>
+</a>
+</td>
+<td align="center">
+<a href="https://github.com/NisargPatel3108">
+<img src="https://github.com/NisargPatel3108.png" width="100px;" alt="Nisarg Patel"/><br />
+<sub><b>Nisarg Patel</b></sub>
+</a><br />
+<a href="https://github.com/NisargPatel3108">
+<img src="https://img.shields.io/badge/-NisargPatel3108-181717?style=flat-square&logo=github" alt="GitHub"/>
+</a>
+</td>
+</tr>
+</table>
 
 </div>
 
@@ -335,7 +371,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 <br/>
 
-**Built with ❤️ using React, TypeScript & Firebase**
+**Built with ❤️ by Team Dayflow**
 
 <br/>
 
