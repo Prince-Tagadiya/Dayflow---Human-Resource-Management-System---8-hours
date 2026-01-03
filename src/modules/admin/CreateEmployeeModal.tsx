@@ -20,6 +20,7 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
 
   const [loading, setLoading] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ loginId: string } | null>(null);
+  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (data: CreateEmployeeFormData) => {
@@ -28,6 +29,7 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
       setError(null);
       const creds = await AdminService.createEmployee(data);
       setCreatedCredentials(creds);
+      setCreatedEmail(data.email);
       // Don't close immediately, show credentials
     } catch (err: any) {
       setError(err.message || 'Failed to create employee');
@@ -38,6 +40,23 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+  };
+
+  const sendActivationEmail = () => {
+    if (!createdCredentials || !createdEmail) return;
+    const subject = encodeURIComponent("Welcome to Dayflow - Account Activation");
+    const body = encodeURIComponent(
+      `Hello,\n\nWelcome to Dayflow. Your Employee Account has been created.\n\n` +
+      `Your Employee ID is: ${createdCredentials.loginId}\n\n` +
+      `Please visit the following link to activate your account:\n` +
+      `${window.location.origin}/activate\n\n` +
+      `Steps to activate:\n` +
+      `1. Enter your Employee ID (${createdCredentials.loginId})\n` +
+      `2. Enter your email address (${createdEmail})\n` +
+      `3. Set your secure password.\n\n` +
+      `Regards,\nHR Team`
+    );
+    window.location.href = `mailto:${createdEmail}?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -75,7 +94,13 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                 {/* Temp Password removed - User sets password during activation */}
               </div>
 
-              <div className="pt-4">
+              <div className="pt-4 flex justify-end">
+                <button
+                  onClick={sendActivationEmail}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium px-6 py-2.5 rounded-lg transition-colors mr-3"
+                >
+                  Email Activation Instructions
+                </button>
                 <button
                   onClick={() => {
                     onSuccess();
@@ -136,7 +161,6 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                   <label className="text-sm font-medium text-gray-700">Year of Joining</label>
                   <input {...register('yearOfJoining', { valueAsNumber: true })} type="number" className="input-field" />
                   {errors.yearOfJoining && <p className="error-text">{errors.yearOfJoining.message}</p>}
-                  <input {...register('companyCode')} type="hidden" />
                 </div>
               </div>
 
