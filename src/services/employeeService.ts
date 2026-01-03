@@ -1,5 +1,5 @@
 import { db } from '../firebase/firebase';
-import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import type { TimeOffRequest, AttendanceRecord, EmployeeProfile } from '../types';
 
 export const EmployeeService = {
@@ -38,7 +38,7 @@ export const EmployeeService = {
     }
   },
 
-  // Fetch Attendance History (Legacy/Simple)
+  // Fetch Attendance History
   getAttendanceHistory: async (employeeId: string) => {
     try {
       const q = query(
@@ -60,14 +60,13 @@ export const EmployeeService = {
     const q = query(
       collection(db, 'attendance'),
       where('employeeId', '==', employeeId),
+      orderBy('date', 'desc'),
       limit(10)
     );
 
     return onSnapshot(q, (snapshot: any) => {
       const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
-      // Sort in memory to avoid index requirements
-      const sorted = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      callback(sorted);
+      callback(data);
     });
   },
 
@@ -78,11 +77,9 @@ export const EmployeeService = {
       const month = date.getMonth() + 1; // 0-based
 
       const startStr = `${year}-${month.toString().padStart(2, '0')}-01`;
-      // Calculate last day of month
       const lastDay = new Date(year, month, 0).getDate();
       const endStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
 
-      // 1. Fetch Real Attendance
       const attQuery = query(
         collection(db, 'attendance'),
         where('employeeId', '==', employeeId),
@@ -93,54 +90,7 @@ export const EmployeeService = {
       const attSnapshot = await getDocs(attQuery);
       const realAttendance = attSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
 
-      // 2. Fetch Leaves (Active in this month)
-      const leavesQuery = query(
-        collection(db, 'timeOffRequests'),
-        where('employeeId', '==', employeeId),
-        where('status', '==', 'approved'),
-        orderBy('startDate', 'desc'),
-        limit(50)
-      );
-      const leavesSnapshot = await getDocs(leavesQuery);
-      let approvedLeaves = leavesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
-
-      // Filter for overlap in memory
-      approvedLeaves = approvedLeaves.filter(l => {
-        return l.startDate <= endStr && l.endDate >= startStr;
-      });
-
-      // 3. Expand Leaves into Virtual Attendance Records
-      const leaveRecords: AttendanceRecord[] = [];
-      const monthStart = new Date(startStr);
-      const monthEnd = new Date(endStr);
-
-      approvedLeaves.forEach(leave => {
-        const lStart = new Date(leave.startDate);
-        const lEnd = new Date(leave.endDate);
-
-        for (let d = new Date(lStart); d <= lEnd; d.setDate(d.getDate() + 1)) {
-          if (d >= monthStart && d <= monthEnd) {
-            const dateStr = d.toISOString().split('T')[0];
-            if (!realAttendance.find(a => a.date === dateStr)) {
-              leaveRecords.push({
-                id: `virt_leave_${leave.id}_${dateStr}`,
-                employeeId,
-                date: dateStr,
-                checkIn: null,
-                checkOut: null,
-                status: 'on-leave',
-                isLocked: true
-              });
-            }
-          }
-        }
-      });
-
-      // 4. Merge and Sort
-      const combined = [...realAttendance, ...leaveRecords];
-      combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      return combined;
+      return realAttendance;
 
     } catch (error) {
       console.error("Error fetching monthly attendance:", error);
@@ -148,17 +98,16 @@ export const EmployeeService = {
     }
   },
 
-  // Fetch Leave Requests (Static)
+  // Fetch Leave Requests
   getLeaveRequests: async (employeeId: string) => {
     try {
       const q = query(
         collection(db, 'timeOffRequests'),
-        where('employeeId', '==', employeeId)
+        where('employeeId', '==', employeeId),
+        orderBy('startDate', 'desc')
       );
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
-      // Sort in memory to avoid needing a Firestore index for simple setups
-      return data.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
     } catch (error) {
       console.error("Error fetching leaves:", error);
       return [];
@@ -236,7 +185,6 @@ export const EmployeeService = {
         privilege: { taken: taken.privilege, total: entitlements.privilege },
         unpaid: { taken: taken.unpaid, total: 0 }
       };
-
     } catch (error) {
       console.error("Error calculating balances:", error);
       return {
@@ -252,9 +200,9 @@ export const EmployeeService = {
   clockIn: async (employeeId: string, time?: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
+      // Use provided time (ISO) or current time
       const checkInTime = time || new Date().toISOString();
 
-      // Check if record exists for today
       const q = query(
         collection(db, 'attendance'),
         where('employeeId', '==', employeeId),
@@ -270,7 +218,8 @@ export const EmployeeService = {
           checkIn: checkInTime,
           checkOut: null,
           status: 'present',
-          isLocked: false
+          isLocked: false,
+          createdAt: new Date().toISOString()
         });
       }
     } catch (error) {
@@ -296,11 +245,33 @@ export const EmployeeService = {
       if (!snapshot.empty) {
         const docId = snapshot.docs[0].id;
         const ref = doc(db, 'attendance', docId);
-        await setDoc(ref, { checkOut: checkOutTime }, { merge: true });
+        await setDoc(ref, { 
+            checkOut: checkOutTime,
+            updatedAt: new Date().toISOString()
+        }, { merge: true });
       }
     } catch (error) {
       console.error("Error clocking out:", error);
       throw error;
+    }
+  },
+
+  getTodayAttendance: async (employeeId: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '==', today),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as AttendanceRecord;
+      }
+      return null;
+    } catch (error) {
+      return null;
     }
   }
 };

@@ -18,15 +18,16 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/activate" element={<Activate />} />
+          <Route path="/signup" element={<Navigate to="/activate" replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/setup" element={<SetupAdmin />} />
-          
+
           <Route path="/dashboard/hr" element={
             <AdminGuard>
               <AdminDashboard />
             </AdminGuard>
           } />
-          
+
           <Route path="/dashboard/employee" element={
             <EmployeeGuard>
               <EmployeeDashboard />

@@ -15,6 +15,7 @@ export const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError(null);
@@ -51,7 +52,6 @@ export const Login: React.FC = () => {
     } catch (err: any) {
       console.error("Login Error details:", err);
       let msg = 'Invalid credentials';
-
       // Preserve specific errors like "Email not verified"
       if (err.message && err.message.includes("verified")) {
         msg = err.message;
@@ -188,6 +188,7 @@ export const Login: React.FC = () => {
               (Dev Only) Create Account
             </button>
           </div>
+
 
         </div>
       </div>
