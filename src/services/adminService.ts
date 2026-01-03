@@ -1,6 +1,4 @@
-import { initializeApp, getApp, deleteApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, runTransaction } from 'firebase/firestore';
 import type { CreateEmployeeFormData } from '../types/forms';
 import { db } from '../firebase/firebase';
 
@@ -37,78 +35,32 @@ export const AdminService = {
     // 1. Generate the Custom ID first
     const loginId = await generateLoginId(data.firstName, data.lastName, data.yearOfJoining);
     
-    // 2. Generate Random Temp Password
-    const tempPassword = Math.random().toString(36).slice(-8) + "1!"; // Ensuring complexity if needed
-    
-    // 3. Create User in Firebase Auth WITHOUT logging out current Admin
-    // TRICK: Initialize a "secondary" Firebase App instance just for this action
-    const firebaseConfig = {
-        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    };
-    
-    const secondaryAppName = `secondaryApp-${Date.now()}`;
-    const secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
-    const secondaryAuth = getAuth(secondaryApp);
-    
-    // CRITICAL FIX: Create Auth User with SYSTEM EMAIL (LoginID@dayflow.app)
-    // This allows the user to login with their ID (e.g. OIJODO2024001) which maps to this email.
-    const systemEmail = `${loginId}@dayflow.app`;
-
     try {
-        // Create the user on the secondary app
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, systemEmail, tempPassword);
-        const newUser = userCredential.user;
-        
-        console.log("Created Auth User:", newUser.uid);
-
-        // 4. Create Firestore Profile (Using main DB connection which has Admin privileges)
-
-        // Store explicit role 'employee' here since we can't set customClaims easily without Admin SDK
-        
-        // Employee Profile
+        // 2. Create Employee Profile in Firestore (Pending Registration status)
+        // We do NOT create the Auth User here. The employee will do that themselves.
         await setDoc(doc(db, 'employees', loginId), {
             id: loginId,
-            uid: newUser.uid,
             firstName: data.firstName,
             lastName: data.lastName,
-            email: data.email,
+            personalEmail: data.email, // Store the email they provided to HR as 'personalEmail' for verification later
             department: data.department,
             designation: data.designation,
             yearOfJoining: data.yearOfJoining,
             phoneNumber: data.phoneNumber,
             companyCode: data.companyCode,
             dateOfJoining: new Date().toISOString(),
-            isActive: true,
-            role: 'employee',
-            isFirstLogin: true // Flag to force password change
+            isActive: true, // Active as an employee record, but not essentially 'login ready' until reg
+            isRegistered: false, // Critical flag for the registration flow
+            role: 'employee'
         });
         
-        // User Mapping (Critical for RoleGuard)
-        await setDoc(doc(db, 'users', newUser.uid), {
-            uid: newUser.uid,
-            email: data.email,
-            role: 'employee',
-            employeeId: loginId,
-            displayName: `${data.firstName} ${data.lastName}`
-        });
-
-        // 5. Cleanup
-        await signOut(secondaryAuth);
-        await deleteApp(secondaryApp);
+        // No User Mapping created yet because there is no UID.
         
-        return { loginId, tempPass: tempPassword };
+        return { loginId };
 
     } catch (error: any) {
         console.error("Creation Failed:", error);
-        // Ensure app is cleaned up even on error
-        await deleteApp(secondaryApp).catch(() => {});
-        
-        if (error.code === 'auth/email-already-in-use') {
-            throw new Error('This email is already registered.');
-        }
-        throw new Error(error.message || 'Failed to create employee');
+        throw new Error(error.message || 'Failed to generate employee ID');
     }
   }
 };

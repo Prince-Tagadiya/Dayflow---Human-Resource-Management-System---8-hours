@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Loader2, Lock, User } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { loginSchema, type LoginFormData } from '../../types/forms';
@@ -77,6 +77,12 @@ export const Login: React.FC = () => {
           <h1 className="text-2xl font-bold text-gray-900">Sign In</h1>
           <p className="text-gray-500 text-sm">Welcome back to Dayflow</p>
         </div>
+
+        <div className="mb-6 text-center">
+            <Link to="/register" className="text-sm font-medium text-blue-600 hover:underline">
+              First time login? Activate your account here
+            </Link>
+          </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
