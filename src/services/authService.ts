@@ -1,5 +1,5 @@
-import { signInWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signOut, type User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase/firebase';
 
 const SYSTEM_EMAIL_DOMAIN = 'dayflow.app';
@@ -70,9 +70,6 @@ export const AuthService = {
 
 // Temporary function to bootstrap the first Admin user
 // This bypasses the cloud function requirement for the INITIAL setup only
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase/firebase';
 
 export const BootstrapMakeAdmin = {
     createMasterAdmin: async () => {
