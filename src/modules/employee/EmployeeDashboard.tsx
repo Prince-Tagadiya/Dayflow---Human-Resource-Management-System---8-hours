@@ -275,8 +275,7 @@ export const EmployeeDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  </div>
-                </div>
+                </div> {/* Closes Attendance Section - Full Width */}
 
                 {/* Leave Balances */}
                 <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
