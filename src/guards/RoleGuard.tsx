@@ -13,18 +13,29 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ children, allowedRoles }) 
   const location = useLocation();
 
   if (loading) {
-    return <div>Loading...</div>; // Replace with proper loading spinner
+    return <div className="min-h-screen flex items-center justify-center">Loading User Data...</div>; 
   }
 
   if (!user) {
-    // Not logged in
+    console.log("RoleGuard: No User, redirecting to login");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Debugging logs to see why it fails
   if (role && !allowedRoles.includes(role)) {
-    // Logged in but insufficient permissions
-    // Redirect logic could be smarter (e.g. to /dashboard)
+    console.log(`RoleGuard: Access Denied. User Role: ${role}, Allowed: ${allowedRoles}`);
     return <Navigate to="/unauthorized" replace />;
+  }
+  
+  if (!role) {
+      // Role is still null but user exists? Wait a bit or show error?
+      // It might be that the Firestore fetch is still happening in AuthContext.
+      // But AuthContext says loading=false.
+      // This means the user has NO role in DB or Claims.
+      console.log("RoleGuard: User has NO ROLE. Redirecting to login/unauthorized.");
+      // Option: Let them through if we are lenient, or block. 
+      // STRICT: Block.
+      return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;

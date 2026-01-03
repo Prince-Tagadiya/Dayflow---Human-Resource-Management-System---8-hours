@@ -51,12 +51,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
                 if (userDoc.exists()) {
                     const userData = userDoc.data();
+                    console.log("AuthContext: Found User Role in Firestore:", userData.role);
                     if (userData.role) {
                         setRole(userData.role as UserRole);
                     }
+                } else {
+                    console.warn("AuthContext: User document not found in Firestore for UID:", firebaseUser.uid);
                 }
              } catch (err) {
-                 console.error("Failed to fetch user role from Firestore", err);
+                 console.error("AuthContext/Firestore Error: Failed to fetch user role.", err);
              }
         }
 
