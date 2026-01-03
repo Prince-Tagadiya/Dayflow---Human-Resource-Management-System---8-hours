@@ -9,7 +9,7 @@ import { AuthService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 
 import { EmployeeService } from '../../services/employeeService';
-import type { EmployeeProfile, TimeOffRequest } from '../../types';
+import type { EmployeeProfile, TimeOffRequest, AttendanceRecord } from '../../types';
 
 import { ApplyLeave } from './ApplyLeave';
 import { ProfilePage } from './ProfilePage';
@@ -25,6 +25,7 @@ export const EmployeeDashboard: React.FC = () => {
   // Data State
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [requests, setRequests] = useState<TimeOffRequest[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [balances, setBalances] = useState({
     casual: { taken: 0, total: 12 },
     sick: { taken: 0, total: 10 },
@@ -40,7 +41,8 @@ export const EmployeeDashboard: React.FC = () => {
   const [displayTime, setDisplayTime] = useState<string>('09:00'); // For the big display
 
   useEffect(() => {
-    let unsubscribe: () => void;
+    let unsubscribeLeaves: () => void;
+    let unsubscribeAttendance: () => void;
     if (user?.uid) {
       const fetchEmployeeData = async () => {
         try {
@@ -53,10 +55,14 @@ export const EmployeeDashboard: React.FC = () => {
             const b = await EmployeeService.getLeaveBalances(p.id);
             setBalances(b);
             // 2. Real-time Leaves
-            unsubscribe = EmployeeService.subscribeToLeaveRequests(p.id, (l) => {
+            unsubscribeLeaves = EmployeeService.subscribeToLeaveRequests(p.id, (l) => {
               setRequests(l);
               // Also refresh balances whenever leaves change (real-time balance update)
               EmployeeService.getLeaveBalances(p.id).then(setBalances);
+            });
+            // 3. Real-time Attendance
+            unsubscribeAttendance = EmployeeService.subscribeToAttendance(p.id, (a) => {
+              setAttendance(a);
             });
           }
         } catch (e) {
@@ -66,7 +72,8 @@ export const EmployeeDashboard: React.FC = () => {
       fetchEmployeeData();
     }
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeLeaves) unsubscribeLeaves();
+      if (unsubscribeAttendance) unsubscribeAttendance();
     };
   }, [user]);
 
@@ -239,15 +246,15 @@ export const EmployeeDashboard: React.FC = () => {
         {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
           {view === 'profile' ? (
-            <ProfilePage 
-                profile={profile}
-                onBack={() => setView('dashboard')}
-                onSave={(updatedProfile) => {
-                    console.log('Profile updated:', updatedProfile);
-                    if (profile) {
-                        setProfile({ ...profile, ...updatedProfile as any });
-                    }
-                }}
+            <ProfilePage
+              profile={profile}
+              onBack={() => setView('dashboard')}
+              onSave={(updatedProfile) => {
+                console.log('Profile updated:', updatedProfile);
+                if (profile) {
+                  setProfile({ ...profile, ...updatedProfile as any });
+                }
+              }}
             />
           ) : view === 'apply-leave' ? (
             <ApplyLeave
@@ -407,8 +414,8 @@ export const EmployeeDashboard: React.FC = () => {
                               </td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset capitalize ${req.status === 'approved' ? 'bg-green-50 text-green-700 ring-green-600/20' :
-                                    req.status === 'rejected' ? 'bg-red-50 text-red-700 ring-red-600/20' :
-                                      'bg-amber-50 text-amber-700 ring-amber-600/20'
+                                  req.status === 'rejected' ? 'bg-red-50 text-red-700 ring-red-600/20' :
+                                    'bg-amber-50 text-amber-700 ring-amber-600/20'
                                   }`}>
                                   {req.status === 'approved' ? 'Accepted' : req.status === 'rejected' ? 'Declined' : 'Pending'}
                                 </span>
@@ -477,7 +484,67 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
 
 
-                  {/* Activity Timeline REMOVED */}
+                  {/* Recent Activity Timeline */}
+                  <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
+                    <h3 className="text-base font-semibold text-slate-900 mb-6">Recent Activity</h3>
+                    <div className="flow-root">
+                      <ul role="list" className="-mb-8">
+                        {(() => {
+                          const allActivities = [
+                            ...attendance.flatMap(a => {
+                              const acts = [];
+                              if (a.checkIn) acts.push({ type: 'clock-in', time: a.checkIn, label: 'Clocked In', color: 'bg-emerald-500' });
+                              if (a.checkOut) acts.push({ type: 'clock-out', time: a.checkOut, label: 'Clocked Out', color: 'bg-rose-500' });
+                              return acts;
+                            }),
+                            ...requests.map(r => ({
+                              type: 'leave',
+                              time: r.appliedAt || r.startDate,
+                              label: `Applied for ${r.type.charAt(0).toUpperCase() + r.type.slice(1)} Leave`,
+                              color: 'bg-blue-500'
+                            }))
+                          ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+
+                          const formatActivityTime = (dateStr: string) => {
+                            const date = new Date(dateStr);
+                            const now = new Date();
+                            const isToday = date.toDateString() === now.toDateString();
+                            const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === date.toDateString();
+
+                            const timePart = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                            if (isToday) return `Today, ${timePart}`;
+                            if (isYesterday) return `Yesterday, ${timePart}`;
+
+                            return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timePart}`;
+                          };
+
+                          return allActivities.map((activity, idx) => (
+                            <li key={idx}>
+                              <div className="relative pb-8">
+                                {idx !== allActivities.length - 1 && (
+                                  <span className="absolute left-1.5 top-1.5 -ml-px h-full w-0.5 bg-slate-100" aria-hidden="true" />
+                                )}
+                                <div className="relative flex items-start gap-3">
+                                  <div className={`mt-1.5 size-3 rounded-full ${activity.color} ring-4 ring-white shadow-sm shrink-0`} />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-slate-900 leading-none">
+                                      {activity.label}
+                                    </p>
+                                    <p className="mt-1.5 text-xs text-slate-500">
+                                      {formatActivityTime(activity.time)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          ));
+                        })()}
+                        {attendance.length === 0 && requests.length === 0 && (
+                          <p className="text-sm text-slate-500 text-center py-4">No recent activity</p>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
 
               </div>

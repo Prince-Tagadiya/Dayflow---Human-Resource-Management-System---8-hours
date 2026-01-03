@@ -55,6 +55,21 @@ export const EmployeeService = {
     }
   },
 
+  // Real-time listener for Attendance
+  subscribeToAttendance: (employeeId: string, callback: (records: AttendanceRecord[]) => void) => {
+    const q = query(
+      collection(db, 'attendance'),
+      where('employeeId', '==', employeeId),
+      orderBy('date', 'desc'),
+      limit(10)
+    );
+
+    return onSnapshot(q, (snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
+      callback(data);
+    });
+  },
+
   // Fetch Leave Requests (Static)
   getLeaveRequests: async (employeeId: string) => {
     try {
