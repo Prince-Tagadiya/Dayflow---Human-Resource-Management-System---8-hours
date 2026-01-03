@@ -1,4 +1,4 @@
-import { EmployeeSalaryDetails } from '../types';
+import type { EmployeeSalaryDetails } from '../types';
 
 export const PayrollService = {
   calculateSalaryBreakdown: (wage: number): EmployeeSalaryDetails => {
