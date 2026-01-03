@@ -49,6 +49,13 @@ export const EmployeeDashboard: React.FC = () => {
 
   // Notification State
   const [showNotifications, setShowNotifications] = useState(false);
+  const [clearedIds, setClearedIds] = useState<string[]>(() => {
+    try {
+        return JSON.parse(localStorage.getItem('clearedNotifications') || '[]');
+    } catch {
+        return [];
+    }
+  });
 
   // Summary Modal State
   const [summaryModal, setSummaryModal] = useState<{
@@ -313,7 +320,7 @@ export const EmployeeDashboard: React.FC = () => {
                 className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none"
               >
                 <Bell size={20} />
-                {requests.filter(r => r.status !== 'pending').length > 0 && (
+                {requests.filter(r => r.status !== 'pending' && !clearedIds.includes(r.id)).length > 0 && (
                   <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
                 )}
               </button>
@@ -322,12 +329,25 @@ export const EmployeeDashboard: React.FC = () => {
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                   <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
                     <span className="font-semibold text-sm text-slate-900">Notifications</span>
-                    <button onClick={() => setShowNotifications(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Close</button>
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => {
+                                const idsToClear = requests.filter(r => r.status !== 'pending').map(r => r.id);
+                                const newCleared = [...new Set([...clearedIds, ...idsToClear])];
+                                setClearedIds(newCleared);
+                                localStorage.setItem('clearedNotifications', JSON.stringify(newCleared));
+                            }}
+                            className="text-xs text-slate-500 hover:text-slate-800 font-medium"
+                        >
+                            Clear
+                        </button>
+                        <button onClick={() => setShowNotifications(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Close</button>
+                    </div>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
-                    {requests.filter(r => r.status !== 'pending').length > 0 ? (
+                    {requests.filter(r => r.status !== 'pending' && !clearedIds.includes(r.id)).length > 0 ? (
                       requests
-                        .filter(r => r.status !== 'pending')
+                        .filter(r => r.status !== 'pending' && !clearedIds.includes(r.id))
                         .sort((a, b) => new Date(b.reviewedAt || b.startDate).getTime() - new Date(a.reviewedAt || a.startDate).getTime())
                         .slice(0, 5)
                         .map(req => (
@@ -339,14 +359,18 @@ export const EmployeeDashboard: React.FC = () => {
                                 <p className="text-xs text-slate-500 mt-0.5">
                                   Your <span className="font-medium capitalize">{req.type}</span> leave for {new Date(req.startDate).toLocaleDateString()} was {req.status}.
                                 </p>
-                                <p className="text-[10px] text-slate-400 mt-1">{req.reviewedAt ? new Date(req.reviewedAt).toLocaleDateString() : 'Recently'}</p>
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                    {req.reviewedAt 
+                                        ? new Date(req.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                                        : 'Recently'}
+                                </p>
                               </div>
                             </div>
                           </div>
                         ))
                     ) : (
                       <div className="px-4 py-8 text-center text-slate-500 text-sm">
-                        No recent updates
+                        No new notifications
                       </div>
                     )}
                   </div>
