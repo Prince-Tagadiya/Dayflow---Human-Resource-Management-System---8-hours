@@ -34,6 +34,9 @@ export const EmployeeDashboard: React.FC = () => {
     const saved = localStorage.getItem('clearedNotifications');
     return saved ? JSON.parse(saved) : [];
   });
+  const [activityClearTime, setActivityClearTime] = useState<string | null>(() => {
+    return localStorage.getItem('activityClearTime');
+  });
   const [balances, setBalances] = useState({
     casual: { taken: 0, total: 12 },
     sick: { taken: 0, total: 10 },
@@ -106,22 +109,21 @@ export const EmployeeDashboard: React.FC = () => {
               setAttendance(a);
               // Update status based on latest attendance
               if (a.length > 0) {
-                const today = new Date().toISOString().split('T')[0];
-                const todayRecord = a.find(rec => rec.date === today);
-                if (todayRecord) {
-                  if (todayRecord.checkIn && !todayRecord.checkOut) {
-                    setStatus('clocked-in');
-                    const date = new Date(todayRecord.checkIn);
-                    setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
-                  } else {
-                    setStatus('clocked-out');
-                    if (todayRecord.checkOut) {
-                      const date = new Date(todayRecord.checkOut);
-                      setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
-                    }
-                  }
+                // Find latest OPEN record (no checkOut)
+                const openRecord = a.find(rec => !rec.checkOut);
+
+                if (openRecord && openRecord.checkIn) {
+                  setStatus('clocked-in');
+                  const date = new Date(openRecord.checkIn);
+                  setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
                 } else {
                   setStatus('clocked-out');
+                  // Use latest record for display
+                  const latest = a[0];
+                  if (latest && latest.checkOut) {
+                    const date = new Date(latest.checkOut);
+                    setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
+                  }
                 }
               } else {
                 setStatus('clocked-out');
@@ -171,21 +173,16 @@ export const EmployeeDashboard: React.FC = () => {
   const handleClockOut = async () => {
     if (!profile) return;
     const date = new Date(checkOutTime);
-    const dateStr = date.toISOString().split('T')[0];
 
     try {
       await EmployeeService.clockOut(profile.id, date.toISOString());
       setStatus('clocked-out');
       setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
 
-      // Prepare data for summary
-      const todayRecord = attendance.find(r => r.date === dateStr);
-      let checkInVal = todayRecord?.checkIn;
-
-      if (!checkInVal) {
-        const rec = await EmployeeService.getTodayAttendance(profile.id);
-        if (rec) checkInVal = rec.checkIn;
-      }
+      // Find the checkIn for the session we just closed
+      // Since it's real-time, it might not be in 'attendance' state yet or might be the first one
+      const rec = await EmployeeService.getTodayAttendance(profile.id);
+      let checkInVal = rec?.checkIn;
 
       if (checkInVal) {
         const start = new Date(checkInVal);
@@ -201,7 +198,7 @@ export const EmployeeDashboard: React.FC = () => {
         setSummaryModal({
           show: true,
           data: {
-            date: date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+            date: end.toISOString(),
             checkIn: start.toISOString(),
             checkOut: end.toISOString(),
             duration: `${hours}h ${mins}m`,
@@ -585,7 +582,19 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                    <h3 className="text-base font-semibold text-slate-900 mb-6 font-display">Recent Activity</h3>
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-base font-semibold text-slate-900 font-display">Recent Activity</h3>
+                      <button
+                        onClick={() => {
+                          const now = new Date().toISOString();
+                          setActivityClearTime(now);
+                          localStorage.setItem('activityClearTime', now);
+                        }}
+                        className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                        Clear Activity
+                      </button>
+                    </div>
                     <div className="flow-root max-h-[400px] overflow-y-auto pr-2">
                       <ul role="list" className="-mb-8">
                         {(() => {
@@ -627,7 +636,10 @@ export const EmployeeDashboard: React.FC = () => {
                               }
                               return acts;
                             })
-                          ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 20);
+                          ]
+                            .filter(act => !activityClearTime || new Date(act.time) > new Date(activityClearTime))
+                            .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+                            .slice(0, 20);
 
                           const formatActivityTime = (dateStr: string) => {
                             const date = new Date(dateStr);
@@ -685,7 +697,7 @@ export const EmployeeDashboard: React.FC = () => {
               </div>
               <h3 className="text-2xl font-bold">Session Recorded!</h3>
               <p className="text-blue-100 text-sm mt-2 font-medium">
-                {new Date(summaryModal.data.checkOut).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {new Date(summaryModal.data.date).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
             <div className="p-8 space-y-6">

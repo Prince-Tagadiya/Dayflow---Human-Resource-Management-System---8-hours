@@ -1,25 +1,23 @@
 import { db } from '../firebase/firebase';
-import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import type { TimeOffRequest, AttendanceRecord, EmployeeProfile } from '../types';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  addDoc,
+  setDoc,
+  orderBy,
+  limit,
+  onSnapshot,
+  Timestamp
+} from 'firebase/firestore';
+import type { EmployeeProfile, AttendanceRecord, TimeOffRequest } from '../types';
 
 export const EmployeeService = {
-  // Fetch Employee Profile by ID (Document Key)
-  getProfile: async (employeeId: string) => {
-    try {
-      const docRef = doc(db, 'employees', employeeId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return { id: docSnap.id, ...docSnap.data() } as EmployeeProfile;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      throw error;
-    }
-  },
-
-  // Fetch Employee Profile by Auth UID
-  getProfileByUid: async (uid: string) => {
+  // Get employee profile by UID
+  getProfileByUid: async (uid: string): Promise<EmployeeProfile | null> => {
     try {
       const q = query(
         collection(db, 'employees'),
@@ -27,19 +25,262 @@ export const EmployeeService = {
         limit(1)
       );
       const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        const docSnap = snapshot.docs[0];
+      if (snapshot.empty) return null;
+      return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as EmployeeProfile;
+    } catch (error) {
+      console.error("Error getting profile:", error);
+      throw error;
+    }
+  },
+
+  // Get employee profile by Document ID
+  getProfile: async (id: string): Promise<EmployeeProfile | null> => {
+    try {
+      const docRef = doc(db, 'employees', id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
         return { id: docSnap.id, ...docSnap.data() } as EmployeeProfile;
       }
       return null;
     } catch (error) {
-      console.error("Error fetching profile by UID:", error);
-      return null;
+      console.error("Error getting profile:", error);
+      throw error;
     }
   },
 
-  // Fetch Attendance History
-  getAttendanceHistory: async (employeeId: string) => {
+  // Update profile
+  updateProfile: async (id: string, data: Partial<EmployeeProfile>) => {
+    try {
+      const docRef = doc(db, 'employees', id);
+      await setDoc(docRef, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw error;
+    }
+  },
+
+  // Real-time Attendance Subscription
+  subscribeToAttendance: (employeeId: string, callback: (records: AttendanceRecord[]) => void) => {
+    const q = query(
+      collection(db, 'attendance'),
+      where('employeeId', '==', employeeId),
+      orderBy('date', 'desc'),
+      limit(31)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const records = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as AttendanceRecord[];
+      callback(records);
+    });
+  },
+
+  // Get attendance by month (for History)
+  getAttendanceByMonth: async (employeeId: string, date: Date): Promise<AttendanceRecord[]> => {
+    try {
+      const startOfMonth = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+      const endOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      // 1. Fetch real attendance
+      const attendanceQuery = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '>=', startOfMonth),
+        where('date', '<=', endOfMonth),
+        orderBy('date', 'desc')
+      );
+      const attendanceSnap = await getDocs(attendanceQuery);
+      const realRecords = attendanceSnap.docs.map(d => ({ id: d.id, ...d.data() })) as AttendanceRecord[];
+
+      // 2. Fetch approved leaves to show in history
+      const leavesQuery = query(
+        collection(db, 'timeOffRequests'),
+        where('employeeId', '==', employeeId),
+        where('status', '==', 'approved')
+      );
+      const leavesSnap = await getDocs(leavesQuery);
+      const leaveRecords: AttendanceRecord[] = [];
+
+      leavesSnap.docs.forEach(d => {
+        const leave = d.data();
+        const start = new Date(leave.startDate);
+        const end = new Date(leave.endDate);
+
+        // Loop through each day of leave
+        for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+          const dateStr = dt.toISOString().split('T')[0];
+          // Only add if within current month and not already marked as present
+          if (dateStr >= startOfMonth && dateStr <= endOfMonth) {
+            if (!realRecords.some(r => r.date === dateStr)) {
+              leaveRecords.push({
+                id: `leave-${d.id}-${dateStr}`,
+                employeeId,
+                date: dateStr,
+                status: 'leave',
+                checkIn: '',
+                checkOut: '',
+                isLeave: true,
+                leaveType: leave.type
+              } as any);
+            }
+          }
+        }
+      });
+
+      return [...realRecords, ...leaveRecords].sort((a, b) => b.date.localeCompare(a.date));
+    } catch (error) {
+      console.error("Error fetching monthly attendance:", error);
+      return [];
+    }
+  },
+
+  // Today's specific attendance helper
+  getTodayAttendance: async (employeeId: string): Promise<AttendanceRecord | null> => {
+    const today = new Date().toISOString().split('T')[0];
+    const q = query(
+      collection(db, 'attendance'),
+      where('employeeId', '==', employeeId),
+      where('date', '==', today),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    return { id: snap.docs[0].id, ...snap.docs[0].data() } as AttendanceRecord;
+  },
+
+  // Real Attendance Tracking
+  clockIn: async (employeeId: string, time?: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const checkInTime = time || new Date().toISOString();
+
+      // Check for any OPEN session (no checkOut)
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        orderBy('date', 'desc'),
+        limit(5)
+      );
+      const snapshot = await getDocs(q);
+      const activeSession = snapshot.docs.find(d => !d.data().checkOut);
+
+      if (!activeSession) {
+        await addDoc(collection(db, 'attendance'), {
+          employeeId,
+          date: today,
+          checkIn: checkInTime,
+          status: 'present',
+          createdAt: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error("Error clocking in:", error);
+      throw error;
+    }
+  },
+
+  clockOut: async (employeeId: string, time?: string) => {
+    try {
+      const checkOutTime = time || new Date().toISOString();
+
+      // Find the latest OPEN session
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        orderBy('date', 'desc'),
+        limit(5)
+      );
+      const snapshot = await getDocs(q);
+      const activeSession = snapshot.docs.find(d => !d.data().checkOut);
+
+      if (activeSession) {
+        const ref = doc(db, 'attendance', activeSession.id);
+        await setDoc(ref, {
+          checkOut: checkOutTime,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        return activeSession.id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error clocking out:", error);
+      throw error;
+    }
+  },
+
+  // Apply for leave
+  applyLeave: async (employeeId: string, data: Partial<TimeOffRequest>) => {
+    try {
+      await addDoc(collection(db, 'timeOffRequests'), {
+        ...data,
+        employeeId,
+        status: 'pending',
+        appliedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error applying leave:", error);
+      throw error;
+    }
+  },
+
+  // Real-time Leave Subscription
+  subscribeToLeaveRequests: (employeeId: string, callback: (requests: TimeOffRequest[]) => void) => {
+    const q = query(
+      collection(db, 'timeOffRequests'),
+      where('employeeId', '==', employeeId),
+      orderBy('createdAt', 'desc')
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const requests = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as TimeOffRequest[];
+      callback(requests);
+    });
+  },
+
+  // Get leave balances
+  getLeaveBalances: async (employeeId: string) => {
+    try {
+      const q = query(
+        collection(db, 'timeOffRequests'),
+        where('employeeId', '==', employeeId),
+        where('status', '==', 'approved')
+      );
+      const snapshot = await getDocs(q);
+
+      const balances = {
+        casual: { taken: 0, total: 12 },
+        sick: { taken: 0, total: 10 },
+        privilege: { taken: 0, total: 20 },
+        unpaid: { taken: 0, total: 0 }
+      };
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        const start = new Date(data.startDate);
+        const end = new Date(data.endDate);
+        const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        const type = data.type as keyof typeof balances;
+        if (balances[type]) {
+          balances[type].taken += days;
+        }
+      });
+
+      return balances;
+    } catch (error) {
+      console.error("Error getting leave balances:", error);
+      throw error;
+    }
+  },
+
+  // Get attendance history (Legacy / Fallback)
+  getAttendanceHistory: async (employeeId: string): Promise<AttendanceRecord[]> => {
     try {
       const q = query(
         collection(db, 'attendance'),
@@ -50,284 +291,24 @@ export const EmployeeService = {
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
     } catch (error) {
-      console.error("Error fetching attendance:", error);
-      return [];
+      console.error("Error getting attendance history:", error);
+      throw error;
     }
   },
 
-  // Real-time listener for Attendance
-  subscribeToAttendance: (employeeId: string, callback: (records: AttendanceRecord[]) => void) => {
-    const q = query(
-      collection(db, 'attendance'),
-      where('employeeId', '==', employeeId),
-      limit(10)
-    );
-
-    return onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
-      // Sort in memory to avoid index requirements
-      const sorted = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      callback(sorted);
-    });
-  },
-
-  // Fetch Attendance for a specific month
-  getAttendanceByMonth: async (employeeId: string, date: Date) => {
-    try {
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1; // 1-based
-
-      const startStr = `${year}-${month.toString().padStart(2, '0')}-01`;
-      // Calculate last day of month
-      const lastDay = new Date(year, month, 0).getDate();
-      const endStr = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
-
-      // 1. Fetch Real Attendance
-      const attQuery = query(
-        collection(db, 'attendance'),
-        where('employeeId', '==', employeeId),
-        where('date', '>=', startStr),
-        where('date', '<=', endStr)
-      );
-      const attSnapshot = await getDocs(attQuery);
-      const realAttendance = attSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
-
-      // 2. Fetch Leaves (Active in this month)
-      const leavesQuery = query(
-        collection(db, 'timeOffRequests'),
-        where('employeeId', '==', employeeId),
-        where('status', '==', 'approved'),
-        limit(50)
-      );
-      const leavesSnapshot = await getDocs(leavesQuery);
-      let approvedLeaves = leavesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
-
-      // Filter for overlap in memory
-      approvedLeaves = approvedLeaves.filter(l => {
-        return l.startDate <= endStr && l.endDate >= startStr;
-      });
-
-      // 3. Expand Leaves into Virtual Attendance Records
-      const leaveRecords: AttendanceRecord[] = [];
-      const monthStart = new Date(startStr);
-      const monthEnd = new Date(endStr);
-
-      approvedLeaves.forEach(leave => {
-        const lStart = new Date(leave.startDate);
-        const lEnd = new Date(leave.endDate);
-
-        for (let d = new Date(lStart); d <= lEnd; d.setDate(d.getDate() + 1)) {
-          if (d >= monthStart && d <= monthEnd) {
-            const dateStr = d.toISOString().split('T')[0];
-            if (!realAttendance.find(a => a.date === dateStr)) {
-              leaveRecords.push({
-                id: `virt_leave_${leave.id}_${dateStr}`,
-                employeeId,
-                date: dateStr,
-                checkIn: null,
-                checkOut: null,
-                status: 'on-leave',
-                isLocked: true
-              });
-            }
-          }
-        }
-      });
-
-      // 4. Merge and Sort
-      const combined = [...realAttendance, ...leaveRecords];
-      combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-      return combined;
-
-    } catch (error) {
-      console.error("Error fetching monthly attendance:", error);
-      return [];
-    }
-  },
-
-  // Fetch Leave Requests (Static)
-  getLeaveRequests: async (employeeId: string) => {
+  // Get leave requests (Legacy / One-time)
+  getLeaveRequests: async (employeeId: string): Promise<TimeOffRequest[]> => {
     try {
       const q = query(
         collection(db, 'timeOffRequests'),
         where('employeeId', '==', employeeId),
-        orderBy('startDate', 'desc')
+        orderBy('createdAt', 'desc')
       );
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
     } catch (error) {
-      console.error("Error fetching leaves:", error);
-      return [];
-    }
-  },
-
-  // Real-time listener for Leave Requests
-  subscribeToLeaveRequests: (employeeId: string, callback: (requests: TimeOffRequest[]) => void) => {
-    const q = query(
-      collection(db, 'timeOffRequests'),
-      where('employeeId', '==', employeeId)
-    );
-
-    return onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
-      const sorted = data.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-      callback(sorted);
-    });
-  },
-
-  // Apply for Leave
-  applyLeave: async (data: Omit<TimeOffRequest, 'id' | 'status'>) => {
-    try {
-      await addDoc(collection(db, 'timeOffRequests'), {
-        ...data,
-        status: 'pending',
-        appliedAt: new Date().toISOString()
-      });
-    } catch (error) {
-      console.error("Error applying leave:", error);
+      console.error("Error getting leave requests:", error);
       throw error;
-    }
-  },
-
-  // Calculate Leave Balances
-  getLeaveBalances: async (employeeId: string) => {
-    try {
-      // 1. Define Entitlements
-      const entitlements = {
-        casual: 12,
-        sick: 10,
-        privilege: 20,
-        unpaid: 0
-      };
-
-      // 2. Fetch ALL approved requests for this user
-      const q = query(
-        collection(db, 'timeOffRequests'),
-        where('employeeId', '==', employeeId),
-        where('status', '==', 'approved')
-      );
-      const snapshot = await getDocs(q);
-      const requests = snapshot.docs.map(doc => doc.data() as TimeOffRequest);
-
-      // 3. Calculate Taken Days
-      const taken = {
-        casual: 0,
-        sick: 0,
-        privilege: 0,
-        unpaid: 0
-      };
-
-      requests.forEach(req => {
-        const start = new Date(req.startDate);
-        const end = new Date(req.endDate);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-        if (req.type in taken) {
-          taken[req.type as keyof typeof taken] += days;
-        }
-      });
-
-      // 4. Return Structure
-      return {
-        casual: { taken: taken.casual, total: entitlements.casual },
-        sick: { taken: taken.sick, total: entitlements.sick },
-        privilege: { taken: taken.privilege, total: entitlements.privilege },
-        unpaid: { taken: taken.unpaid, total: 0 }
-      };
-    } catch (error) {
-      console.error("Error calculating balances:", error);
-      return {
-        casual: { taken: 0, total: 12 },
-        sick: { taken: 0, total: 10 },
-        privilege: { taken: 0, total: 20 },
-        unpaid: { taken: 0, total: 0 }
-      };
-    }
-  },
-
-  // Real Attendance Tracking
-  clockIn: async (employeeId: string, time?: string) => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      // Use provided time (ISO) or current time
-      const checkInTime = time || new Date().toISOString();
-
-      // Check if record exists for today
-      const q = query(
-        collection(db, 'attendance'),
-        where('employeeId', '==', employeeId),
-        where('date', '==', today),
-        limit(1)
-      );
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        const docRef = await addDoc(collection(db, 'attendance'), {
-          employeeId,
-          date: today,
-          checkIn: checkInTime,
-          checkOut: null,
-          status: 'present',
-          isLocked: false,
-          createdAt: new Date().toISOString()
-        });
-        return docRef.id;
-      }
-      return snapshot.docs[0].id;
-    } catch (error) {
-      console.error("Error clocking in:", error);
-      throw error;
-    }
-  },
-
-  clockOut: async (employeeId: string, time?: string) => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const checkOutTime = time || new Date().toISOString();
-
-      const q = query(
-        collection(db, 'attendance'),
-        where('employeeId', '==', employeeId),
-        where('date', '==', today),
-        limit(1)
-      );
-      const snapshot = await getDocs(q);
-
-      if (!snapshot.empty) {
-        const docId = snapshot.docs[0].id;
-        const ref = doc(db, 'attendance', docId);
-        await setDoc(ref, {
-          checkOut: checkOutTime,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-        return docId;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error clocking out:", error);
-      throw error;
-    }
-  },
-
-  getTodayAttendance: async (employeeId: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    try {
-      const q = query(
-        collection(db, 'attendance'),
-        where('employeeId', '==', employeeId),
-        where('date', '==', today),
-        limit(1)
-      );
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as AttendanceRecord;
-      }
-      return null;
-    } catch (error) {
-      console.error("Error fetching today attendance:", error);
-      return null;
     }
   }
 };
