@@ -37,9 +37,15 @@ export const EmployeeDashboard: React.FC = () => {
 
   // State for Check-In/Out Simulation
   const [status, setStatus] = useState<'clocked-in' | 'clocked-out'>('clocked-out');
-  const [checkInTime, setCheckInTime] = useState<string>('09:00'); // Default simulated time
-  const [checkOutTime, setCheckOutTime] = useState<string>('18:00'); // Default simulated time
-  const [displayTime, setDisplayTime] = useState<string>('09:00'); // For the big display
+  // Helper to get local ISO string for datetime-local
+  const getLocalISOString = (date: Date) => {
+    const offset = date.getTimezoneOffset() * 60000; // offset in milliseconds
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const [checkInTime, setCheckInTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(9, 0, 0, 0)))); 
+  const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(18, 0, 0, 0))));
+  const [displayTime, setDisplayTime] = useState<string>('---'); // For the big display
 
   useEffect(() => {
     let unsubscribeLeaves: () => void;
@@ -109,11 +115,8 @@ export const EmployeeDashboard: React.FC = () => {
   const handleClockIn = async () => {
     if (!profile) return;
 
-    // Convert 24h input to full date
-    const [hours, minutes] = checkInTime.split(':');
-    const date = new Date();
-    date.setHours(parseInt(hours));
-    date.setMinutes(parseInt(minutes));
+    // Use selected date-time directly
+    const date = new Date(checkInTime);
 
     try {
       await EmployeeService.clockIn(profile.id, date.toISOString());
@@ -127,11 +130,8 @@ export const EmployeeDashboard: React.FC = () => {
   const handleClockOut = async () => {
     if (!profile) return;
 
-    // Convert 24h input to full date
-    const [hours, minutes] = checkOutTime.split(':');
-    const date = new Date();
-    date.setHours(parseInt(hours));
-    date.setMinutes(parseInt(minutes));
+    // Use selected date-time directly
+    const date = new Date(checkOutTime);
 
     try {
       await EmployeeService.clockOut(profile.id, date.toISOString());
@@ -419,10 +419,10 @@ export const EmployeeDashboard: React.FC = () => {
                               {status === 'clocked-out' ? 'Set Simulation Check-In Time' : 'Set Simulation Check-Out Time'}
                             </label>
                             <input
-                              type="time"
+                              type="datetime-local"
                               value={status === 'clocked-out' ? checkInTime : checkOutTime}
                               onChange={(e) => status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value)}
-                              className="block w-full sm:w-40 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
+                              className="block w-full sm:w-60 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
                             />
                             <p className="text-[10px] text-slate-400 mt-1">
                               {status === 'clocked-out' ? "Select time and click 'Clock In'" : "Select time and click 'Clock Out'"}
