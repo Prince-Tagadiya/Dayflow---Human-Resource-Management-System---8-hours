@@ -218,82 +218,32 @@ export const ApplyLeave: React.FC<ApplyLeaveProps> = ({ profile, onCancel, onSuc
                   className="block w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-3 resize-none"
                   placeholder="Please describe the reason for your leave..."
                 ></textarea>
-                 <div className="mt-1 flex justify-end">
+                  <div className="mt-1 flex justify-end">
                     <span className="text-xs text-slate-400">{formData.reason.length} / 250 characters</span>
+                  </div>
               </div>
-            </form>
-          </div>
 
-          <div className="flex flex-col gap-6 lg:col-span-1">
-            {/* Balances */}
-            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-              <h3 className="text-base font-semibold text-slate-900 mb-4">Your Balances</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-500">Casual Leave</span>
-                    <span className="font-medium text-slate-900">{balances.casual.taken} / {balances.casual.total}</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(balances.casual.taken / balances.casual.total) * 100}%` }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-500">Sick Leave</span>
-                    <span className="font-medium text-slate-900">{balances.sick.taken} / {balances.sick.total}</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-rose-500 rounded-full" style={{ width: `${(balances.sick.taken / balances.sick.total) * 100}%` }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-500">Privilege Leave</span>
-                    <span className="font-medium text-slate-900">{balances.privilege.taken} / {balances.privilege.total}</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(balances.privilege.taken / balances.privilege.total) * 100}%` }}></div>
-                  </div>
-                </div>
+              {/* Actions */}
+              <div className="flex justify-end pt-4 border-t border-slate-200 gap-3">
+                 <button 
+                  type="button"
+                  onClick={onCancel}
+                  className="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-sm shadow-blue-500/30 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span>{loading ? 'Submitting...' : 'Submit Request'}</span>
+                  {!loading && <Send size={18} />}
+                </button>
               </div>
             </div>
+          </form>
 
-            {/* Policy Reminder */}
-            <div className="rounded-xl bg-indigo-50 p-5 border border-indigo-100">
-              <div className="flex items-start gap-3">
-                <Info className="text-indigo-600 mt-0.5" size={20} />
-                <div>
-                  <h4 className="text-sm font-semibold text-indigo-900">Policy Reminder</h4>
-                  <p className="mt-1 text-sm text-indigo-700 leading-relaxed">
-                    Sick leaves exceeding 2 consecutive days require a valid medical certificate. Please ensure your certificate is legible.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Approval Chain */}
-            <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">Approval Chain</h3>
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-600">SJ</div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">Sarah Jenkins</p>
-                  <p className="text-xs text-slate-500">Engineering Manager</p>
-                </div>
-              </div>
-              <div className="ml-5 h-6 w-0.5 bg-slate-200 my-1"></div>
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                  <CheckCircle size={20} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">HR Department</p>
-                  <p className="text-xs text-slate-500">Final Verification</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
