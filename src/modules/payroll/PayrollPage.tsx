@@ -16,7 +16,13 @@ interface PayrollPageProps {
 }
 
 export const PayrollPage: React.FC<PayrollPageProps> = ({ 
-  // ... (Props remain same)
+  initialWage = 600000, 
+  allowEdit = false, 
+  employeeName = "Alex Morgan", 
+  employeeId = "EMP-001",
+  designation,
+  department,
+  onSave 
 }) => {
   const [wage, setWage] = useState<number>(initialWage / 12);
   const [details, setDetails] = useState<EmployeeSalaryDetails | null>(null);
@@ -28,7 +34,20 @@ export const PayrollPage: React.FC<PayrollPageProps> = ({
     setDetails({ ...calculated, employeeId });
   }, [wage, employeeId]);
 
-  // ... (Handlers and formatCurrency remain same)
+  const handleWageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val) && val >= 0) {
+      setWage(val);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
 
   const downloadSalarySlip = async () => {
     if (!details || !slipRef.current) return;
