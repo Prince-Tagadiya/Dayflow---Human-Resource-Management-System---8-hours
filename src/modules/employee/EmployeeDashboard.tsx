@@ -70,6 +70,10 @@ export const EmployeeDashboard: React.FC = () => {
     }
   });
 
+  const [activityClearTime, setActivityClearTime] = useState<string | null>(() => {
+     return localStorage.getItem('activityClearTime');
+  });
+
   // Summary Modal State
   const [summaryModal, setSummaryModal] = useState<{
     show: boolean;
@@ -114,20 +118,21 @@ export const EmployeeDashboard: React.FC = () => {
               setAttendance(a);
               // Update status based on latest attendance
               if (a.length > 0) {
-                const today = new Date().toISOString().split('T')[0];
-                const todayRecord = a.find(rec => rec.date === today);
-                if (todayRecord) {
-                  if (todayRecord.checkIn && !todayRecord.checkOut) {
+                // Find latest OPEN record (no checkOut)
+                const openRecord = a.find(rec => !rec.checkOut);
+                
+                if (openRecord && openRecord.checkIn) {
                     setStatus('clocked-in');
-                    const date = new Date(todayRecord.checkIn);
+                    const date = new Date(openRecord.checkIn);
                     setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
-                  } else {
+                } else {
                     setStatus('clocked-out');
-                    if (todayRecord.checkOut) {
-                      const date = new Date(todayRecord.checkOut);
+                    // Use latest record for display
+                    const latest = a[0]; // Already sorted by desc
+                    if (latest && latest.checkOut) {
+                      const date = new Date(latest.checkOut);
                       setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
                     }
-                  }
                 }
               }
             });
@@ -682,8 +687,20 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                    <h3 className="text-base font-semibold text-slate-900 mb-6 font-display">Recent Activity</h3>
-                    <div className="flow-root">
+                    <div className="flex items-center justify-center sm:justify-between mb-6">
+                        <h3 className="text-base font-semibold text-slate-900 font-display">Recent Activity</h3>
+                        <button 
+                            onClick={() => {
+                                const now = new Date().toISOString();
+                                setActivityClearTime(now);
+                                localStorage.setItem('activityClearTime', now);
+                            }}
+                            className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                            Clear Activity
+                        </button>
+                    </div>
+                    <div className="flow-root max-h-[400px] overflow-y-auto pr-2">
                       <ul role="list" className="-mb-8">
                         {(() => {
                           const allActivities = [
@@ -696,7 +713,16 @@ export const EmployeeDashboard: React.FC = () => {
                               const outDate = parseDate(a.checkOut);
 
                               if (inDate) arr.push({ time: inDate.toISOString(), label: 'Clocked In', color: 'bg-emerald-500' });
-                              if (outDate) arr.push({ time: outDate.toISOString(), label: 'Clocked Out', color: 'bg-rose-500' });
+                              if (outDate) {
+                                let durationStr = '';
+                                if (inDate) {
+                                   const diff = outDate.getTime() - inDate.getTime();
+                                   const hours = Math.floor(diff / 3600000);
+                                   const mins = Math.floor((diff % 3600000) / 60000);
+                                   durationStr = ` (${hours}h ${mins}m)`;
+                                }
+                                arr.push({ time: outDate.toISOString(), label: `Clocked Out${durationStr}`, color: 'bg-rose-500' });
+                              }
                               return arr;
                             }),
                             ...requests.flatMap(r => {
@@ -724,7 +750,10 @@ export const EmployeeDashboard: React.FC = () => {
                               }
                               return acts;
                             })
-                          ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+                          ]
+                          .filter(act => !activityClearTime || new Date(act.time) > new Date(activityClearTime))
+                          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+                          .slice(0, 20);
 
                           const formatActivityTime = (dateStr: string) => {
                             const date = new Date(dateStr);

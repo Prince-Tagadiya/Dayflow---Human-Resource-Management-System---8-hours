@@ -196,22 +196,22 @@ export const EmployeeService = {
     }
   },
 
-  // Clock In
   clockIn: async (employeeId: string, time?: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      // Use provided time (ISO) or current time
       const checkInTime = time || new Date().toISOString();
 
+      // Check if there is already an OPEN session (recent)
       const q = query(
         collection(db, 'attendance'),
         where('employeeId', '==', employeeId),
-        where('date', '==', today),
-        limit(1)
+        orderBy('date', 'desc'),
+        limit(5)
       );
       const snapshot = await getDocs(q);
+      const activeSession = snapshot.docs.find(d => !d.data().checkOut);
 
-      if (snapshot.empty) {
+      if (!activeSession) {
         await addDoc(collection(db, 'attendance'), {
           employeeId,
           date: today,
@@ -231,20 +231,20 @@ export const EmployeeService = {
   // Clock Out
   clockOut: async (employeeId: string, time?: string) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
       const checkOutTime = time || new Date().toISOString();
 
+      // Find the latest OPEN session
       const q = query(
         collection(db, 'attendance'),
         where('employeeId', '==', employeeId),
-        where('date', '==', today),
-        limit(1)
+        orderBy('date', 'desc'),
+        limit(5)
       );
       const snapshot = await getDocs(q);
+      const activeSession = snapshot.docs.find(d => !d.data().checkOut);
 
-      if (!snapshot.empty) {
-        const docId = snapshot.docs[0].id;
-        const ref = doc(db, 'attendance', docId);
+      if (activeSession) {
+        const ref = doc(db, 'attendance', activeSession.id);
         await setDoc(ref, { 
             checkOut: checkOutTime,
             updatedAt: new Date().toISOString()
