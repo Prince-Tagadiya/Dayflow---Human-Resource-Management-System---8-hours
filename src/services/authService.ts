@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
 
 // Helper to construct email from login ID if needed, or assume Login ID is email-like
@@ -20,6 +20,17 @@ export const AuthService = {
     }
   },
 
+  register: async (loginId: string, password: string) => {
+    const email = loginId.includes('@') ? loginId : `${loginId}@${SYSTEM_EMAIL_DOMAIN}`;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      return userCredential.user;
+    } catch (error) {
+      console.error("Registration failed", error);
+      throw error;
+    }
+  },
+
   logout: async () => {
     try {
       await signOut(auth);
@@ -32,7 +43,7 @@ export const AuthService = {
   getCurrentUser: (): FirebaseUser | null => {
     return auth.currentUser;
   },
-  
+
   // Force token refresh to get latest custom claims
   refreshToken: async () => {
     if (auth.currentUser) {

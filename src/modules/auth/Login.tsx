@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, Lock, User } from 'lucide-react';
 import { AuthService } from '../../services/authService';
-import { loginSchema, LoginFormData } from '../../types/forms';
+import { loginSchema, type LoginFormData } from '../../types/forms';
 import { useAuth } from '../../auth/AuthContext';
 
 export const Login: React.FC = () => {
@@ -49,9 +49,9 @@ export const Login: React.FC = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Login ID / Email</label>
             <div className="relative">
-              <input 
+              <input
                 {...register('loginId')}
-                type="text" 
+                type="text"
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 placeholder="e.g. OIJODO2024001"
               />
@@ -63,9 +63,9 @@ export const Login: React.FC = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Password</label>
             <div className="relative">
-              <input 
+              <input
                 {...register('password')}
-                type="password" 
+                type="password"
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 placeholder="Enter your password"
               />
@@ -80,8 +80,8 @@ export const Login: React.FC = () => {
             </div>
           )}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center"
           >
@@ -89,10 +89,31 @@ export const Login: React.FC = () => {
           </button>
         </form>
 
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const id = prompt("Enter Admin ID:", "admin");
+              const pass = prompt("Enter Password:", "admin123");
+              if (id && pass) {
+                try {
+                  await AuthService.register(id, pass);
+                  alert("User created! You can now login.");
+                } catch (e: any) {
+                  alert("Failed: " + e.message);
+                }
+              }
+            }}
+            className="text-xs text-blue-500 hover:underline w-full text-center block"
+          >
+            (Dev Only) Create Account
+          </button>
+        </div>
+
         <div className="pt-4 text-center">
-            <p className="text-xs text-gray-400">
-                Authorized Personnel Only. <br/>Contact HR for account access.
-            </p>
+          <p className="text-xs text-gray-400">
+            Authorized Personnel Only. <br />Contact HR for account access.
+          </p>
         </div>
       </div>
     </div>
