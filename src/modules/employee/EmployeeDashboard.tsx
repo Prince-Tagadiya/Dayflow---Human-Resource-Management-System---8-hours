@@ -12,6 +12,7 @@ import { EmployeeService } from '../../services/employeeService';
 import type { EmployeeProfile, TimeOffRequest } from '../../types';
 
 import { ApplyLeave } from './ApplyLeave';
+import { ProfilePage } from './ProfilePage';
 
 export const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -19,7 +20,7 @@ export const EmployeeDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // View State for Navigation
-  const [view, setView] = useState<'dashboard' | 'apply-leave'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'apply-leave' | 'profile'>('dashboard');
 
   // Data State
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
@@ -130,10 +131,10 @@ export const EmployeeDashboard: React.FC = () => {
               <LayoutDashboard size={20} />
               <span className="text-sm font-medium">Dashboard</span>
             </button>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <User size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Profile</span>
-            </a>
+            <button onClick={() => setView('profile')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'profile' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <User size={20} />
+              <span className="text-sm font-medium">Profile</span>
+            </button>
             <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
               <Clock size={20} className="group-hover:text-blue-600 transition-colors" />
               <span className="text-sm font-medium group-hover:text-slate-900">Attendance</span>
@@ -227,7 +228,19 @@ export const EmployeeDashboard: React.FC = () => {
 
         {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
-            {view === 'apply-leave' ? (
+            {view === 'profile' ? (
+                <ProfilePage 
+                    profile={profile}
+                    onBack={() => setView('dashboard')}
+                    onSave={(updatedProfile) => {
+                        console.log('Profile updated:', updatedProfile);
+                        // In a real app, you would save to Firestore here
+                        if (profile) {
+                            setProfile({ ...profile, ...updatedProfile as any });
+                        }
+                    }}
+                />
+            ) : view === 'apply-leave' ? (
                 <ApplyLeave 
                     profile={profile} 
                     balances={balances}
@@ -435,15 +448,15 @@ export const EmployeeDashboard: React.FC = () => {
                         </div>
 
                         {/* Alerts / Holidays */}
-                        <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 shadow-md text-white">
+                        <div className="rounded-xl bg-blue-600 p-6 shadow-lg text-white">
                         <div className="flex items-start gap-4">
-                            <div className="rounded-lg bg-white/20 p-2 backdrop-blur-sm">
+                            <div className="rounded-lg bg-white/20 p-2">
                             <PartyPopper className="text-white" size={24} />
                             </div>
                             <div>
                             <h3 className="font-semibold text-white">Upcoming Holiday</h3>
-                            <p className="mt-1 text-sm text-blue-100">Makar Sankranti</p>
-                            <div className="mt-3 flex items-center gap-2 text-sm font-medium">
+                            <p className="mt-1 text-sm text-white/90">Makar Sankranti</p>
+                            <div className="mt-3 flex items-center gap-2 text-sm font-medium text-white">
                                 <CalendarDays size={18} />
                                 Jan 14, 2026 - Jan 15, 2026
                             </div>
