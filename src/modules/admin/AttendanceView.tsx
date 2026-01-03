@@ -59,7 +59,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ employees, atten
     return (
         <div className="space-y-6">
             {/* Top Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6">
                 {/* Total Staff */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <div className="flex justify-between items-start">
