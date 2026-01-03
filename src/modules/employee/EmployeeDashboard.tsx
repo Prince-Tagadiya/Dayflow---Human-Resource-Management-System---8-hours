@@ -64,6 +64,18 @@ export const EmployeeDashboard: React.FC = () => {
             // 3. Real-time Attendance
             unsubscribeAttendance = EmployeeService.subscribeToAttendance(p.id, (a) => {
               setAttendance(a);
+              // Set status based on today's record
+              const today = new Date().toISOString().split('T')[0];
+              const todayRecord = a.find(r => r.date === today);
+              if (todayRecord) {
+                if (todayRecord.checkIn && !todayRecord.checkOut) {
+                  setStatus('clocked-in');
+                  const checkInDate = new Date(todayRecord.checkIn);
+                  setDisplayTime(checkInDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }));
+                } else {
+                  setStatus('clocked-out');
+                }
+              }
             });
           }
         } catch (e) {
@@ -261,69 +273,70 @@ export const EmployeeDashboard: React.FC = () => {
         {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
           {view === 'attendance' ? (
-             <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">Attendance History</h2>
-                  <p className="text-sm text-slate-500 mt-1">View your check-in and check-out times.</p>
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check In</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check Out</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hours</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {attendance.length > 0 ? attendance.map((record) => {
-                                const checkIn = record.checkIn ? new Date(record.checkIn) : null;
-                                const checkOut = record.checkOut ? new Date(record.checkOut) : null;
-                                let duration = '---';
-                                if (checkIn && checkOut) {
-                                  const diff = checkOut.getTime() - checkIn.getTime();
-                                  const hours = Math.floor(diff / 3600000);
-                                  const mins = Math.floor((diff % 3600000) / 60000);
-                                  duration = `${hours}h ${mins}m`;
-                                }
-                                return (
-                                <tr key={record.id} className="hover:bg-slate-50/50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                                      {new Date(record.date).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                            {record.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                        {checkIn ? checkIn.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '---'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                                        {checkOut ? checkOut.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '---'}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
-                                        {duration}
-                                    </td>
-                                </tr>
-                            )}) : (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">No attendance records found.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-             </div>
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900">Attendance History</h2>
+                <p className="text-sm text-slate-500 mt-1">View your check-in and check-out times.</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check In</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check Out</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-200">
+                    {attendance.length > 0 ? attendance.map((record) => {
+                      const checkIn = record.checkIn ? new Date(record.checkIn) : null;
+                      const checkOut = record.checkOut ? new Date(record.checkOut) : null;
+                      let duration = '---';
+                      if (checkIn && checkOut) {
+                        const diff = checkOut.getTime() - checkIn.getTime();
+                        const hours = Math.floor(diff / 3600000);
+                        const mins = Math.floor((diff % 3600000) / 60000);
+                        duration = `${hours}h ${mins}m`;
+                      }
+                      return (
+                        <tr key={record.id} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                            {new Date(record.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {checkIn ? checkIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {checkOut ? checkOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
+                            {duration}
+                          </td>
+                        </tr>
+                      )
+                    }) : (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">No attendance records found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : view === 'payroll' ? (
-             <PayrollPage 
-                initialWage={50000 * 12} 
-                allowEdit={false} 
-                employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')} 
-                employeeId={profile?.companyCode || '---'}
-             />
+            <PayrollPage
+              initialWage={50000 * 12}
+              allowEdit={false}
+              employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
+              employeeId={profile?.companyCode || '---'}
+            />
           ) : view === 'profile' ? (
             <ProfilePage
               profile={profile}
@@ -576,23 +589,37 @@ export const EmployeeDashboard: React.FC = () => {
                               if (a.checkOut) acts.push({ type: 'clock-out', time: a.checkOut, label: 'Clocked Out', color: 'bg-rose-500' });
                               return acts;
                             }),
-                            ...requests.map(r => ({
-                              type: 'leave',
-                              time: r.appliedAt || r.startDate,
-                              label: `Applied for ${r.type.charAt(0).toUpperCase() + r.type.slice(1)} Leave`,
-                              color: 'bg-blue-500'
-                            }))
+                            ...requests.flatMap(r => {
+                              const acts = [];
+                              acts.push({
+                                type: 'leave-applied',
+                                time: r.appliedAt || r.startDate,
+                                label: `Applied for ${r.type.charAt(0).toUpperCase() + r.type.slice(1)} Leave`,
+                                color: 'bg-blue-500'
+                              });
+                              if (r.status !== 'pending' && r.reviewedAt) {
+                                acts.push({
+                                  type: `leave-${r.status}`,
+                                  time: r.reviewedAt,
+                                  label: `Leave Request ${r.status === 'approved' ? 'Accepted' : 'Declined'}`,
+                                  color: r.status === 'approved' ? 'bg-emerald-500' : 'bg-rose-500'
+                                });
+                              }
+                              return acts;
+                            })
                           ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
 
                           const formatActivityTime = (dateStr: string) => {
                             const date = new Date(dateStr);
                             const now = new Date();
-                            const isToday = date.toDateString() === now.toDateString();
-                            const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === date.toDateString();
+                            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            const activityDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
+                            const diffDays = Math.round((today.getTime() - activityDate.getTime()) / (1000 * 60 * 60 * 24));
                             const timePart = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                            if (isToday) return `Today, ${timePart}`;
-                            if (isYesterday) return `Yesterday, ${timePart}`;
+
+                            if (diffDays === 0) return `Today, ${timePart}`;
+                            if (diffDays === 1) return `Yesterday, ${timePart}`;
 
                             return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${timePart}`;
                           };
