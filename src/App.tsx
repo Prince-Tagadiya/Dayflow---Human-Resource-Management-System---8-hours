@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { Login } from './modules/auth/Login';
 import { AdminDashboard } from './modules/admin/AdminDashboard';
+import { EmployeeDashboard } from './modules/employee/EmployeeDashboard';
 import { SetupAdmin } from './modules/admin/SetupAdmin';
 import { AdminGuard, EmployeeGuard } from './guards/RoleGuard';
 import { LandingPage } from './modules/landing/LandingPage';
@@ -28,11 +29,7 @@ function App() {
           
           <Route path="/dashboard/employee" element={
             <EmployeeGuard>
-              {/* Placeholder for Employee Dashboard - To be built */}
-              <div className="p-8 text-center">
-                 <h1 className="text-2xl font-bold">Employee Dashboard</h1>
-                 <p>Welcome! Your secure portal is under construction.</p>
-              </div>
+              <EmployeeDashboard />
             </EmployeeGuard>
           } />
 
