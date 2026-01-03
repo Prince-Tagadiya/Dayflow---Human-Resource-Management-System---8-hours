@@ -64,6 +64,15 @@ export const AdminService = {
         }
     },
 
+    updateEmployee: async (id: string, data: Partial<any>) => {
+        try {
+            await setDoc(doc(db, 'employees', id), data, { merge: true });
+        } catch (error) {
+            console.error("Error updating employee:", error);
+            throw error;
+        }
+    },
+
     getAllEmployees: async () => {
         try {
             const q = query(collection(db, 'employees'), orderBy('dateOfJoining', 'desc'));
