@@ -93,26 +93,40 @@ export const EmployeeDashboard: React.FC = () => {
     navigate('/login');
   };
 
-  const handleClockIn = () => {
-    // SIMULATION: Use the edited time
-    setStatus('clocked-in');
+  const handleClockIn = async () => {
+    if (!profile) return;
 
-    // Convert 24h input to 12h display format for the big clock
+    // Convert 24h input to full date
     const [hours, minutes] = checkInTime.split(':');
     const date = new Date();
     date.setHours(parseInt(hours));
     date.setMinutes(parseInt(minutes));
-    setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+
+    try {
+      await EmployeeService.clockIn(profile.id, date.toISOString());
+      setStatus('clocked-in');
+      setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+    } catch (e) {
+      console.error("Clock in failed", e);
+    }
   };
 
-  const handleClockOut = () => {
-    setStatus('clocked-out');
-    // SIMULATION: Use the edited check-out time
+  const handleClockOut = async () => {
+    if (!profile) return;
+
+    // Convert 24h input to full date
     const [hours, minutes] = checkOutTime.split(':');
     const date = new Date();
     date.setHours(parseInt(hours));
     date.setMinutes(parseInt(minutes));
-    setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+
+    try {
+      await EmployeeService.clockOut(profile.id, date.toISOString());
+      setStatus('clocked-out');
+      setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+    } catch (e) {
+      console.error("Clock out failed", e);
+    }
   };
 
   const getInitials = () => {

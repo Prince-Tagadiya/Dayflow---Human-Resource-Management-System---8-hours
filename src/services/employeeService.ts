@@ -1,5 +1,5 @@
 import { db } from '../firebase/firebase';
-import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import type { TimeOffRequest, AttendanceRecord, EmployeeProfile } from '../types';
 
 export const EmployeeService = {
@@ -173,6 +173,65 @@ export const EmployeeService = {
         privilege: { taken: 0, total: 20 },
         unpaid: { taken: 0, total: 0 }
       };
+    }
+  },
+
+  // Clock In
+  clockIn: async (employeeId: string, time?: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const checkInTime = time || new Date().toISOString();
+
+      // Check if record exists for today
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '==', today),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        await addDoc(collection(db, 'attendance'), {
+          employeeId,
+          date: today,
+          checkIn: checkInTime,
+          checkOut: null,
+          status: 'present',
+          isLocked: false
+        });
+      }
+    } catch (error) {
+      console.error("Error clocking in:", error);
+      throw error;
+    }
+  },
+
+  // Clock Out
+  clockOut: async (employeeId: string, time?: string) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const checkOutTime = time || new Date().toISOString();
+
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '==', today),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const docId = snapshot.docs[0].id;
+        // Assuming setDoc and doc are imported from 'firebase/firestore' at the top level
+        // or available in the scope where this object is defined.
+        // The original code had a local require, which is now removed.
+        const ref = doc(db, 'attendance', docId);
+        await setDoc(ref, { checkOut: checkOutTime }, { merge: true });
+      }
+    } catch (error) {
+      console.error("Error clocking out:", error);
+      throw error;
     }
   }
 };
