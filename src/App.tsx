@@ -5,7 +5,7 @@ import { AdminDashboard } from './modules/admin/AdminDashboard';
 import { SetupAdmin } from './modules/admin/SetupAdmin';
 import { AdminGuard, EmployeeGuard } from './guards/RoleGuard';
 import { LandingPage } from './modules/landing/LandingPage';
-import { Register } from './modules/auth/Register';
+import { Activate } from './modules/auth/Activate';
 import './App.css';
 
 function App() {
@@ -15,7 +15,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/activate" element={<Activate />} />
           <Route path="/setup" element={<SetupAdmin />} />
           
           <Route path="/dashboard/hr" element={
