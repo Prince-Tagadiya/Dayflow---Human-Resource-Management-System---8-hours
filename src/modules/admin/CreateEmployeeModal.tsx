@@ -61,7 +61,7 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
               <p className="text-gray-500 max-w-md mx-auto">
                 Please share these credentials with the employee securely. The password is temporary and must be changed on first login.
               </p>
-              
+
               <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 max-w-md mx-auto space-y-4 text-left">
                 <div>
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Login ID</label>
@@ -84,7 +84,7 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
               </div>
 
               <div className="pt-4">
-                <button 
+                <button
                   onClick={() => {
                     onSuccess();
                     onClose();
@@ -103,7 +103,7 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                   <input {...register('firstName')} placeholder="e.g. John" className="input-field" />
                   {errors.firstName && <p className="error-text">{errors.firstName.message}</p>}
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Last Name</label>
                   <input {...register('lastName')} placeholder="e.g. Doe" className="input-field" />
@@ -133,11 +133,12 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                   <input {...register('designation')} placeholder="e.g. Senior Developer" className="input-field" />
                   {errors.designation && <p className="error-text">{errors.designation.message}</p>}
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Year of Joining</label>
                   <input {...register('yearOfJoining', { valueAsNumber: true })} type="number" className="input-field" />
                   {errors.yearOfJoining && <p className="error-text">{errors.yearOfJoining.message}</p>}
+                  <input {...register('companyCode')} type="hidden" />
                 </div>
               </div>
 
@@ -148,15 +149,15 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
               )}
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
-                <button 
-                  type="button" 
-                  onClick={onClose} 
+                <button
+                  type="button"
+                  onClick={onClose}
                   className="px-4 py-2 text-gray-700 font-medium hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={loading}
                   className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
