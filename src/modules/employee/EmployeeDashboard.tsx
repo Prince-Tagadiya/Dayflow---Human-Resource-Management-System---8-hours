@@ -8,15 +8,47 @@ import { useAuth } from '../../auth/AuthContext';
 import { AuthService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 
+import { EmployeeService } from '../../services/employeeService';
+import type { EmployeeProfile, TimeOffRequest } from '../../types';
+
 export const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  // Data State
+  const [profile, setProfile] = useState<EmployeeProfile | null>(null);
+  const [requests, setRequests] = useState<TimeOffRequest[]>([]);
+  // const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]); // Future use
+
   // State for Check-In/Out Simulation
   const [status, setStatus] = useState<'clocked-in' | 'clocked-out'>('clocked-out');
   const [checkInTime, setCheckInTime] = useState<string>('09:00'); // Default simulated time
   const [displayTime, setDisplayTime] = useState<string>('09:00'); // For the big display
+
+  useEffect(() => {
+    if ((user as any)?.employeeId) { // or fetch based on UID if employeeId is missing on user object initially
+         const fetchEmployeeData = async () => {
+             // 1. Get Profile (Real Data)
+             // We use a safe cast or logic here. If user.employeeId isn't on the type yet, we can try to fetch by UID if service supports it, 
+             // but for now let's assume valid ID or fallbacks.
+             // Ideally we'd have a method getProfileByUid but getProfile uses ID.
+             // For this step I'll try to fetch using the custom ID we supposedly have.
+             try {
+                const p = await EmployeeService.getProfile((user as any).employeeId); 
+                if (p) {
+                    setProfile(p);
+                    // 2. Get Leaves
+                    const l = await EmployeeService.getLeaveRequests(p.id);
+                    setRequests(l);
+                }
+             } catch (e) {
+                 console.error("Failed to load employee data", e);
+             }
+         };
+         fetchEmployeeData();
+    }
+  }, [user]);
 
   // Update clock every minute for display if not overriding
   useEffect(() => {
@@ -146,12 +178,12 @@ export const EmployeeDashboard: React.FC = () => {
             {/* User Dropdown */}
             <div className="flex items-center gap-3 pl-2 sm:border-l sm:border-slate-200 sm:pl-6">
               <div className="hidden text-right sm:block">
-                <p className="text-sm font-semibold text-slate-900">{user?.displayName || 'User'}</p>
-                <p className="text-xs text-slate-500">Employee</p>
+                <p className="text-sm font-semibold text-slate-900">{profile?.firstName || user?.displayName || 'User'}</p>
+                <p className="text-xs text-slate-500">{profile?.designation || 'Employee'}</p>
               </div>
               <button className="group relative size-9 overflow-hidden rounded-full bg-slate-200 ring-2 ring-transparent transition-all hover:ring-blue-500/20">
                 <div className="flex items-center justify-center w-full h-full bg-blue-100 text-blue-600 font-bold">
-                  {user?.displayName?.[0] || 'U'}
+                  {profile?.firstName?.[0] || user?.displayName?.[0] || 'U'}
                 </div>
               </button>
             </div>
@@ -164,7 +196,7 @@ export const EmployeeDashboard: React.FC = () => {
             {/* Page Heading */}
             <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Good Morning, {user?.displayName?.split(' ')[0] || 'Employee'} 👋</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Good Morning, {profile?.firstName || user?.displayName?.split(' ')[0] || 'Employee'} 👋</h1>
                 <p className="text-sm text-slate-500 mt-1">Here's what's happening with you today.</p>
               </div>
               <div className="mt-4 flex items-center gap-3 sm:mt-0">
@@ -290,7 +322,7 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Recent Requests Table */}
+                {/* Pending Requests Table */}
                 <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-900/5">
                   <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                     <h3 className="text-base font-semibold text-slate-900">Pending Requests</h3>
@@ -302,20 +334,24 @@ export const EmployeeDashboard: React.FC = () => {
                           <th className="px-6 py-3 font-medium">Request Type</th>
                           <th className="px-6 py-3 font-medium">Dates</th>
                           <th className="px-6 py-3 font-medium">Applied On</th>
-                          <th className="px-6 py-3 font-medium">Approver</th>
                           <th className="px-6 py-3 font-medium">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        <tr className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4 text-slate-900 font-medium">Sick Leave</td>
-                          <td className="px-6 py-4 text-slate-500">Oct 28 - Oct 29</td>
-                          <td className="px-6 py-4 text-slate-500">Oct 24, 2023</td>
-                          <td className="px-6 py-4 text-slate-500">Sarah Jenkins</td>
-                          <td className="px-6 py-4">
-                            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">Pending</span>
-                          </td>
-                        </tr>
+                        {requests.length > 0 ? requests.map((req) => (
+                          <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-6 py-4 text-slate-900 font-medium capitalize">{req.type} Leave</td>
+                            <td className="px-6 py-4 text-slate-500">{req.startDate} to {req.endDate}</td>
+                            <td className="px-6 py-4 text-slate-500">
+                                {req.reviewedAt ? new Date(req.reviewedAt).toLocaleDateString() : 'Just Now'}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 capitalize">{req.status}</span>
+                            </td>
+                          </tr>
+                        )) : (
+                           <tr><td colSpan={4} className="p-6 text-center text-slate-500">No pending requests</td></tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -331,11 +367,11 @@ export const EmployeeDashboard: React.FC = () => {
                 <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center justify-center size-16 rounded-full bg-slate-200 text-slate-500 text-2xl font-bold">
-                        {user?.displayName?.[0] || 'U'}
+                        {profile?.firstName?.[0] || user?.displayName?.[0] || 'U'}
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900">{user?.displayName || 'Alex Johnson'}</h3>
-                      <p className="text-sm text-slate-500">ID: {(user as any)?.employeeId || 'EMP-1024'}</p>
+                      <h3 className="text-lg font-bold text-slate-900">{profile?.firstName} {profile?.lastName}</h3>
+                      <p className="text-sm text-slate-500">ID: {profile?.id || '---'}</p>
                       <span className="mt-1 inline-flex items-center gap-1.5 rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                         <span className="size-1.5 rounded-full bg-emerald-500"></span> Active
                       </span>
@@ -344,11 +380,11 @@ export const EmployeeDashboard: React.FC = () => {
                   <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-4">
                     <div className="text-center px-2">
                       <p className="text-xs text-slate-500 uppercase tracking-wide">Department</p>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-900">Engineering</p>
+                      <p className="mt-0.5 text-sm font-semibold text-slate-900">{profile?.department || '---'}</p>
                     </div>
                     <div className="text-center px-2">
-                      <p className="text-xs text-slate-500 uppercase tracking-wide">Manager</p>
-                      <p className="mt-0.5 text-sm font-semibold text-slate-900">Sarah J.</p>
+                      <p className="text-xs text-slate-500 uppercase tracking-wide">Designation</p>
+                      <p className="mt-0.5 text-sm font-semibold text-slate-900">{profile?.designation || '---'}</p>
                     </div>
                   </div>
                   <button className="w-full rounded-lg bg-slate-100 py-2 text-sm font-medium text-slate-900 hover:bg-slate-200 transition-colors">
@@ -382,7 +418,7 @@ export const EmployeeDashboard: React.FC = () => {
                         <span className="size-2 rounded-full bg-emerald-500"></span>
                       </span>
                       <p className="text-sm font-medium text-slate-900">Clocked In</p>
-                      <p className="text-xs text-slate-500">Today, 09:42 AM</p>
+                      <p className="text-xs text-slate-500">Today, {displayTime}</p>
                     </div>
                     <div className="relative ml-6">
                        <span className="absolute -left-[31px] flex size-4 items-center justify-center rounded-full bg-slate-100 ring-4 ring-white">
