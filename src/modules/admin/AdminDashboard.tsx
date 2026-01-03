@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { LogOut, Users, UserPlus, Clock, Calendar, Menu, TrendingUp, AlertCircle, CheckCircle, XCircle, Search, Filter, Settings } from 'lucide-react';
+import { LogOut, Users, UserPlus, Clock, Calendar, Menu, TrendingUp, AlertCircle, CheckCircle, XCircle, Search, Filter, Settings, Check, X, CalendarDays, FileText, ChevronDown } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { AdminService } from '../../services/adminService';
 import { useNavigate } from 'react-router-dom';
@@ -26,6 +26,9 @@ export const AdminDashboard: React.FC = () => {
     presentToday: 0,
     pendingLeaves: 0
   });
+
+  // Local state for admin notes on requests
+  const [adminNotes, setAdminNotes] = useState<{ [key: string]: string }>({});
 
   // Fetch Data based on active tab and Stats
   useEffect(() => {
@@ -88,7 +91,8 @@ export const AdminDashboard: React.FC = () => {
   const handleLeaveAction = async (requestId: string, status: 'approved' | 'rejected') => {
     if (!user) return;
     try {
-      await AdminService.updateTimeOffRequestStatus(requestId, status, user.uid);
+      await AdminService.updateTimeOffRequestStatus(requestId, status, user.uid, adminNotes[requestId]);
+      setAdminNotes(prev => ({ ...prev, [requestId]: '' })); // Clear note after action
       fetchData(); // Refresh list
       fetchStats(); // Update stats
     } catch (e) {
@@ -188,218 +192,213 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatsCard
-                  title="Total Employees"
-                  value={stats.totalEmployees}
-                  icon={<Users size={24} className="text-blue-600" />}
-                  bg="bg-blue-50"
-                  trend="+2 this month"
-                />
-                <StatsCard
-                  title="Present Today"
-                  value={stats.presentToday}
-                  icon={<CheckCircle size={24} className="text-green-600" />}
-                  bg="bg-green-50"
-                  trend="85% Attendance"
-                />
-                <StatsCard
-                  title="Pending Requests"
-                  value={stats.pendingLeaves}
-                  icon={<AlertCircle size={24} className="text-amber-600" />}
-                  bg="bg-amber-50"
-                  trend="Needs Attention"
-                  urgent={stats.pendingLeaves > 0}
-                />
-              </div>
             </div>
 
-            {/* Content Table */}
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatsCard
+                title={activeTab === 'leaves' ? "Pending Requests" : "Total Employees"}
+                value={activeTab === 'leaves' ? leaves.filter(l => l.status === 'pending').length : stats.totalEmployees}
+                icon={activeTab === 'leaves' ? <CalendarDays size={24} className="text-amber-600" /> : <Users size={24} className="text-blue-600" />}
+                bg={activeTab === 'leaves' ? "bg-amber-50" : "bg-blue-50"}
+                trend={activeTab === 'leaves' ? `${leaves.filter(l => l.status === 'pending').length} pending` : "+2 this month"}
+                urgent={activeTab === 'leaves' ? true : false}
+              />
+              <StatsCard
+                title={activeTab === 'leaves' ? "Approved This Month" : "Present Today"}
+                value={activeTab === 'leaves' ? leaves.filter(l => l.status === 'approved').length : stats.presentToday}
+                icon={activeTab === 'leaves' ? <CheckCircle size={24} className="text-green-600" /> : <CheckCircle size={24} className="text-green-600" />}
+                bg="bg-green-50"
+                trend={activeTab === 'leaves' ? "Approved" : "85% Attendance"}
+              />
+              <StatsCard
+                title={activeTab === 'leaves' ? "Rejected This Month" : "Pending Requests"}
+                value={activeTab === 'leaves' ? leaves.filter(l => l.status === 'rejected').length : stats.pendingLeaves}
+                icon={activeTab === 'leaves' ? <XCircle size={24} className="text-red-600" /> : <AlertCircle size={24} className="text-amber-600" />}
+                bg={activeTab === 'leaves' ? "bg-red-50" : "bg-amber-50"}
+                trend={activeTab === 'leaves' ? "Rejected" : "Needs Attention"}
+                urgent={activeTab !== 'leaves' && stats.pendingLeaves > 0}
+              />
+            </div>
+
+            {/* Content Section */}
             {loading ? (
               <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl shadow-sm border border-gray-100">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
                 <p className="text-gray-400 font-medium">Loading data...</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                {/* Filter Bar (Placeholder) */}
-                <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/30">
-                  <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                    <input
-                      type="text"
-                      placeholder="Search..."
-                      className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                    />
-                  </div>
-                  <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <Filter size={16} />
-                    Filter
-                  </button>
-                </div>
+              <>
+                {activeTab === 'leaves' ? (
+                  // LEAVES VIEW (Cards)
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-gray-900">Recent Requests</h2>
+                      <button className="text-sm font-medium text-blue-600 hover:text-blue-700">View History</button>
+                    </div>
 
-                {/* EMPLOYEES TABLE */}
-                {activeTab === 'employees' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                        <tr>
-                          <th className="px-6 py-4">Employee</th>
-                          <th className="px-6 py-4">Role</th>
-                          <th className="px-6 py-4">Department</th>
-                          <th className="px-6 py-4">Status</th>
-                          <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {employees.length > 0 ? employees.map((emp) => (
-                          <tr key={emp.id} className="hover:bg-gray-50/80 transition-colors group">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-bold text-sm shadow-inner">
-                                  {getInitials(emp.firstName, emp.lastName)}
-                                </div>
-                                <div>
-                                  <p className="font-semibold text-gray-900">{emp.firstName} {emp.lastName}</p>
-                                  <p className="text-xs text-gray-500">{emp.email}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 font-medium">{emp.designation}</td>
-                            <td className="px-6 py-4">
-                              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">
-                                {emp.department}
+                    {/* Search logic could go here, omitting for brevity/focus on cards */}
+
+                    {leaves.length > 0 ? leaves.map((req) => {
+                      const emp = employees.find(e => e.id === req.employeeId) || {
+                        firstName: 'Unknown', lastName: 'Employee', designation: 'N/A', department: 'N/A', id: req.employeeId, isActive: false, email: '', uid: '', loginId: '', dateOfJoining: ''
+                      };
+                      const fullName = `${emp.firstName} ${emp.lastName}`;
+                      const initials = getInitials(emp.firstName, emp.lastName);
+                      const isPending = req.status === 'pending';
+
+                      const typeStyles: Record<string, string> = {
+                        sick: 'bg-red-50 text-red-600',
+                        casual: 'bg-blue-50 text-blue-600',
+                        earned: 'bg-purple-50 text-purple-600',
+                        unpaid: 'bg-gray-100 text-gray-600'
+                      };
+
+                      const typeLabel: Record<string, string> = {
+                        sick: 'Medical', casual: 'Casual', earned: 'Privilege', unpaid: 'Unpaid'
+                      };
+
+                      return (
+                        <div key={req.id} className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm flex flex-col lg:flex-row gap-6 hover:shadow-md transition-all">
+                          <div className="flex items-start gap-4 min-w-[200px]">
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 text-white flex items-center justify-center font-bold text-lg shadow-md">
+                              {initials}
+                            </div>
+                            <div>
+                              <h3 className="text-base font-bold text-gray-900">{fullName}</h3>
+                              <p className="text-sm text-blue-600 font-medium">{emp.designation}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{emp.department}</p>
+                            </div>
+                          </div>
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-center gap-3">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${typeStyles[req.type] || 'bg-gray-100'}`}>
+                                {typeLabel[req.type] || req.type} Leave
                               </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${emp.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                                {emp.isActive ? 'Active' : 'Inactive'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <button className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50">
-                                <Settings size={18} />
-                              </button>
-                            </td>
-                          </tr>
-                        )) : (
-                          <tr><td colSpan={5} className="p-12 text-center text-gray-500">No employees found.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* ATTENDANCE TABLE */}
-                {activeTab === 'attendance' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                        <tr>
-                          <th className="px-6 py-4">Employee</th>
-                          <th className="px-6 py-4">Date</th>
-                          <th className="px-6 py-4">Check In</th>
-                          <th className="px-6 py-4">Check Out</th>
-                          <th className="px-6 py-4">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {attendance.map((record) => (
-                          <tr key={record.id} className="hover:bg-gray-50/80 transition-colors">
-                            <td className="px-6 py-4 font-medium text-gray-900">{getEmployeeName(record.employeeId)}</td>
-                            <td className="px-6 py-4 text-sm text-gray-500">{record.date}</td>
-                            <td className="px-6 py-4 text-sm font-mono text-gray-600">
-                              {record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                            </td>
-                            <td className="px-6 py-4 text-sm font-mono text-gray-600">
-                              {record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                            </td>
-                            <td className="px-6 py-4">
-                              <StatusBadge status={record.status} />
-                            </td>
-                          </tr>
-                        ))}
-                        {attendance.length === 0 && (
-                          <tr><td colSpan={5} className="p-12 text-center text-gray-500">No attendance records found for today.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* LEAVES TABLE */}
-                {activeTab === 'leaves' && (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                      <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
-                        <tr>
-                          <th className="px-6 py-4">Employee</th>
-                          <th className="px-6 py-4">Type & Duration</th>
-                          <th className="px-6 py-4">Reason</th>
-                          <th className="px-6 py-4">Status</th>
-                          <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {leaves.map((req) => (
-                          <tr key={req.id} className="hover:bg-gray-50/80 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="font-medium text-gray-900">{getEmployeeName(req.employeeId)}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-gray-900 capitalize">{req.type} Leave</span>
-                                <span className="text-xs text-gray-500">{req.startDate} to {req.endDate}</span>
+                              <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                                <Clock size={14} />
+                                {/* Simple date diff for duration */}
+                                <span>{Math.ceil((new Date(req.endDate).getTime() - new Date(req.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} Days</span>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">{req.reason}</td>
-                            <td className="px-6 py-4">
-                              <StatusBadge status={req.status} />
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              {req.status === 'pending' && (
-                                <div className="flex items-center justify-end gap-2">
-                                  <button
-                                    onClick={() => handleLeaveAction(req.id, 'approved')}
-                                    className="p-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors border border-green-200" title="Approve">
-                                    <CheckCircle size={18} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleLeaveAction(req.id, 'rejected')}
-                                    className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-200" title="Reject">
-                                    <XCircle size={18} />
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                        {leaves.length === 0 && (
-                          <tr><td colSpan={5} className="p-12 text-center text-gray-500">No pending leave requests.</td></tr>
-                        )}
-                      </tbody>
-                    </table>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-gray-900">
+                                {new Date(req.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                {' — '}
+                                {new Date(req.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </h4>
+                            </div>
+                          </div>
+                          <div className="flex-1 lg:max-w-md border-t lg:border-t-0 lg:border-l border-gray-100 lg:pl-6 pt-4 lg:pt-0">
+                            <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Reason</h5>
+                            <p className="text-sm text-gray-600 leading-relaxed">{req.reason}</p>
+                          </div>
+                          <div className="flex flex-col gap-3 min-w-[200px] border-t lg:border-t-0 lg:border-l border-gray-100 lg:pl-6 pt-4 lg:pt-0 justify-center">
+                            {isPending ? (
+                              <>
+                                <input
+                                  type="text"
+                                  placeholder="Add a note (optional)..."
+                                  className="w-full text-xs p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                                  value={adminNotes[req.id] || ''}
+                                  onChange={(e) => setAdminNotes(prev => ({ ...prev, [req.id]: e.target.value }))}
+                                />
+                                <button onClick={() => handleLeaveAction(req.id, 'approved')} className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm shadow-blue-600/20">
+                                  <Check size={16} /> Approve
+                                </button>
+                                <button onClick={() => handleLeaveAction(req.id, 'rejected')} className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg font-semibold text-sm transition-colors">
+                                  <X size={16} /> Reject
+                                </button>
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-full">
+                                {req.status === 'approved' && <div className="flex items-center gap-2 text-green-600 font-bold bg-green-50 px-4 py-2 rounded-lg"><CheckCircle size={20} /> Approved</div>}
+                                {req.status === 'rejected' && <div className="flex items-center gap-2 text-red-600 font-bold bg-red-50 px-4 py-2 rounded-lg"><XCircle size={20} /> Rejected</div>}
+                                {req.adminComments && <p className="text-xs text-gray-500 mt-2 text-center italic">"{req.adminComments}"</p>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    }) : (
+                      <div className="p-12 text-center bg-white rounded-xl border border-gray-200"><p className="text-gray-500">No leave requests found.</p></div>
+                    )}
+                  </div>
+                ) : (
+                  // EMPLOYEES & ATTENDANCE VIEW (Tables)
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    {/* Filter Bar */}
+                    <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/30">
+                      <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input type="text" placeholder="Search..." className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 outline-none" />
+                      </div>
+                      <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"><Filter size={16} /> Filter</button>
+                    </div>
+
+                    {activeTab === 'employees' && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                          <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                            <tr><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Role</th><th className="px-6 py-4">Department</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Actions</th></tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {employees.length > 0 ? employees.map((emp) => (
+                              <tr key={emp.id} className="hover:bg-gray-50/80 transition-colors group">
+                                <td className="px-6 py-4"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-700 flex items-center justify-center font-bold text-sm shadow-inner">{getInitials(emp.firstName, emp.lastName)}</div><div><p className="font-semibold text-gray-900">{emp.firstName} {emp.lastName}</p><p className="text-xs text-gray-500">{emp.email}</p></div></div></td>
+                                <td className="px-6 py-4 text-sm text-gray-600 font-medium">{emp.designation}</td>
+                                <td className="px-6 py-4"><span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-700">{emp.department}</span></td>
+                                <td className="px-6 py-4"><span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}><span className={`w-1.5 h-1.5 rounded-full ${emp.isActive ? 'bg-green-500' : 'bg-red-500'}`}></span>{emp.isActive ? 'Active' : 'Inactive'}</span></td>
+                                <td className="px-6 py-4 text-right"><button className="text-gray-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50"><Settings size={18} /></button></td>
+                              </tr>
+                            )) : (<tr><td colSpan={5} className="p-12 text-center text-gray-500">No employees found.</td></tr>)}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {activeTab === 'attendance' && (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                          <thead className="bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider font-semibold">
+                            <tr><th className="px-6 py-4">Employee</th><th className="px-6 py-4">Date</th><th className="px-6 py-4">Check In</th><th className="px-6 py-4">Check Out</th><th className="px-6 py-4">Status</th></tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {attendance.map((record) => (
+                              <tr key={record.id} className="hover:bg-gray-50/80 transition-colors">
+                                <td className="px-6 py-4 font-medium text-gray-900">{getEmployeeName(record.employeeId)}</td>
+                                <td className="px-6 py-4 text-sm text-gray-500">{record.date}</td>
+                                <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.checkIn ? new Date(record.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                                <td className="px-6 py-4 text-sm font-mono text-gray-600">{record.checkOut ? new Date(record.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                                <td className="px-6 py-4"><StatusBadge status={record.status} /></td>
+                              </tr>
+                            ))}
+                            {attendance.length === 0 && (<tr><td colSpan={5} className="p-12 text-center text-gray-500">No attendance records found for today.</td></tr>)}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         </div>
-      </main>
+      </main >
 
       {/* Modals */}
-      {showCreateModal && (
-        <CreateEmployeeModal
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            fetchData();
-            fetchStats();
-          }}
-        />
-      )}
-    </div>
+      {
+        showCreateModal && (
+          <CreateEmployeeModal
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={() => {
+              fetchData();
+              fetchStats();
+            }}
+          />
+        )
+      }
+    </div >
   );
 };
 
