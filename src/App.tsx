@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './auth/AuthContext';
 import { Login } from './modules/auth/Login';
 import { AdminDashboard } from './modules/admin/AdminDashboard';
+import { SetupAdmin } from './modules/admin/SetupAdmin';
 import { AdminGuard, EmployeeGuard } from './guards/RoleGuard';
 import './App.css';
 
@@ -11,6 +12,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/setup" element={<SetupAdmin />} />
           
           <Route path="/dashboard/hr" element={
             <AdminGuard>

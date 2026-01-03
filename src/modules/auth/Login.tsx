@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2, Lock, User } from 'lucide-react';
 import { AuthService } from '../../services/authService';
-import { loginSchema, LoginFormData } from '../../types/forms';
+import { loginSchema, type LoginFormData } from '../../types/forms';
 import { useAuth } from '../../auth/AuthContext';
 
 export const Login: React.FC = () => {
@@ -21,18 +21,26 @@ export const Login: React.FC = () => {
       setError(null);
       setLoading(true);
       await AuthService.login(data.loginId, data.password);
-      // AuthContext will trigger state change, redirect logic should be in a generic AuthRedirect wrapper or useEffect, 
-      // but simple redirect here works too if we wait a bit or let App.tsx handle it.
-      // However, immediate navigation is better UX.
-      // We'll rely on the RoleGuard or App routing, but let's push to root which redirects.
-      navigate('/');
+      
+      // Explicitly check role (optional but good for debugging) or just let the Guard handle it.
+      // Force navigation to root - the App.tsx redirects based on role.
+      // We will perform a hard redirect to force fresh state if needed, but navigate should work.
+      console.log("Login successful, navigating...");
+      navigate('/dashboard/hr'); // Try forcing to HR dashboard first, RoleGuard will kick back if wrong
     } catch (err: any) {
-      console.error(err);
-      setError('Invalid credentials. Please check your Login ID and Password.');
+      console.error("Login Error details:", err);
+      // Firebase auth errors are specific
+      let msg = 'Invalid credentials';
+      if (err.code === 'auth/user-not-found') msg = 'User not found';
+      if (err.code === 'auth/wrong-password') msg = 'Invalid password';
+      if (err.code === 'auth/network-request-failed') msg = 'Network error - Check your connection';
+      
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

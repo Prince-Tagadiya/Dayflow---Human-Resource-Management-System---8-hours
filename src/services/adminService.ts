@@ -1,6 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../firebase/firebase';
-import { CreateEmployeeFormData } from '../types/forms';
+import type { CreateEmployeeFormData } from '../types/forms';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 
 // Client-side helper to simulate ID generation if Cloud Functions are not available (Demo Mode)

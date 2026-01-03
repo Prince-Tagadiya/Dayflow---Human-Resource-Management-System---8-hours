@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { X, Loader2, CheckCircle, Copy } from 'lucide-react';
-import { createEmployeeSchema, CreateEmployeeFormData } from '../../types/forms';
+import { createEmployeeSchema, type CreateEmployeeFormData } from '../../types/forms';
 import { AdminService } from '../../services/adminService';
 
 interface CreateEmployeeModalProps {

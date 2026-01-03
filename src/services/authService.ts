@@ -40,3 +40,52 @@ export const AuthService = {
     }
   }
 };
+
+// Temporary function to bootstrap the first Admin user
+// This bypasses the cloud function requirement for the INITIAL setup only
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase/firebase';
+
+export const BootstrapMakeAdmin = {
+    createMasterAdmin: async () => {
+        const email = "hr@dayflow.app";
+        const password = "adminPassword123!";
+        
+        try {
+            // 1. Create Auth User
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // 2. Create Admin Profile in Firestore (This acts as the source of truth for RoleGuard now)
+            await setDoc(doc(db, 'users', user.uid), {
+                uid: user.uid,
+                email: user.email,
+                role: 'admin', // Firestore Role (RoleGuard will check this)
+                displayName: "System Administrator"
+            });
+            
+            // 3. Create Employee entry for the Admin so they can exist in the system
+            await setDoc(doc(db, 'employees', 'ADMIN-001'), {
+                id: 'ADMIN-001',
+                uid: user.uid,
+                firstName: "System",
+                lastName: "Admin",
+                email: user.email,
+                department: "HR",
+                designation: "Head of HR",
+                yearOfJoining: 2024,
+                isActive: true,
+                role: 'admin'
+            });
+
+            return { email, password };
+        } catch (error: any) {
+            if (error.code === 'auth/email-already-in-use') {
+                 // Already exists, just return credentials
+                 return { email, password };
+            }
+            throw error;
+        }
+    }
+};
