@@ -47,6 +47,9 @@ export const EmployeeDashboard: React.FC = () => {
   const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date()));
   const [displayTime, setDisplayTime] = useState<string>('---'); // For the big display
 
+  // Notification State
+  const [showNotifications, setShowNotifications] = useState(false);
+
   // Summary Modal State
   const [summaryModal, setSummaryModal] = useState<{
     show: boolean;
@@ -304,11 +307,51 @@ export const EmployeeDashboard: React.FC = () => {
                 type="text"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <button className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
+            <div className="relative flex items-center gap-2">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none"
+              >
                 <Bell size={20} />
-                <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                {requests.filter(r => r.status !== 'pending').length > 0 && (
+                  <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                )}
               </button>
+              
+              {showNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                  <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
+                    <span className="font-semibold text-sm text-slate-900">Notifications</span>
+                    <button onClick={() => setShowNotifications(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Close</button>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {requests.filter(r => r.status !== 'pending').length > 0 ? (
+                      requests
+                        .filter(r => r.status !== 'pending')
+                        .sort((a, b) => new Date(b.reviewedAt || b.startDate).getTime() - new Date(a.reviewedAt || a.startDate).getTime())
+                        .slice(0, 5)
+                        .map(req => (
+                          <div key={req.id} className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-1 size-2 rounded-full shrink-0 ${req.status === 'approved' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">Request {req.status === 'approved' ? 'Approved' : 'Rejected'}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Your <span className="font-medium capitalize">{req.type}</span> leave for {new Date(req.startDate).toLocaleDateString()} was {req.status}.
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-1">{req.reviewedAt ? new Date(req.reviewedAt).toLocaleDateString() : 'Recently'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="px-4 py-8 text-center text-slate-500 text-sm">
+                        No recent updates
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3 pl-2 sm:border-l sm:border-slate-200 sm:pl-6">
               <div className="hidden text-right sm:block">
