@@ -31,27 +31,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("AuthProvider: mounted, starting auth listener");
     // Listen for token changes to capture Custom Claims (role)
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          const tokenResult: IdTokenResult = await firebaseUser.getIdTokenResult();
-          setUser(firebaseUser);
-          setClaims(tokenResult.claims);
-          setRole((tokenResult.claims.role as UserRole) || null);
-        } else {
-          setUser(null);
-          setClaims({});
-          setRole(null);
+      if (firebaseUser) {
+        const tokenResult: IdTokenResult = await firebaseUser.getIdTokenResult();
+
+        let userRole = (tokenResult.claims.role as UserRole) || null;
+
+        setUser(firebaseUser);
+        setClaims(tokenResult.claims);
+        setRole(userRole);
+
+        if (!userRole) {
+          try {
+            // Using standard imports from firebase/firestore which should be available
+            // We need to import db from the module scope to be safe or use getFirestore()
+            const { doc, getDoc } = await import('firebase/firestore');
+            const { db } = await import('../firebase/firebase');
+
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              console.log("AuthContext: Found User Role in Firestore:", userData.role);
+              if (userData.role) {
+                setRole(userData.role as UserRole);
+              }
+            } else {
+              console.warn("AuthContext: User document not found in Firestore for UID:", firebaseUser.uid);
+            }
+          } catch (err) {
+            console.error("AuthContext/Firestore Error: Failed to fetch user role.", err);
+          }
         }
-      } catch (error) {
-        console.error("Error in auth state change:", error);
+        setLoading(false); // CRITICAL: Only set loading=false AFTER the role fetch is done
+
+      } else {
         setUser(null);
         setRole(null);
-      } finally {
-        setLoading(false);
+        setClaims({});
+        setLoading(false); // Only define loading false here if no user
       }
-    }, (error) => {
-      console.error("Auth subscription error:", error);
-      setLoading(false);
     });
 
     // Safety timeout in case Firebase hangs
