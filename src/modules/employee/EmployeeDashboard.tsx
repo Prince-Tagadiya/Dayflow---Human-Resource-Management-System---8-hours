@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  LayoutDashboard, User, Clock, Calendar, CreditCard, Settings, HelpCircle, LogOut,
+  LayoutDashboard, User, Clock, Calendar, CreditCard, LogOut,
   Menu, Search, Bell, Plus, Sun, Thermometer, CheckCircle, PartyPopper, CalendarDays,
   ChevronDown
 } from 'lucide-react';
@@ -51,9 +51,9 @@ export const EmployeeDashboard: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [clearedIds, setClearedIds] = useState<string[]>(() => {
     try {
-        return JSON.parse(localStorage.getItem('clearedNotifications') || '[]');
+      return JSON.parse(localStorage.getItem('clearedNotifications') || '[]');
     } catch {
-        return [];
+      return [];
     }
   });
 
@@ -263,23 +263,12 @@ export const EmployeeDashboard: React.FC = () => {
             </button>
           </nav>
 
-          <nav className="flex flex-col gap-1">
-            <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">System</p>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <Settings size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Settings</span>
-            </a>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <HelpCircle size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Help Center</span>
-            </a>
-            <div className="mt-4 border-t border-slate-100 pt-4">
-              <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-rose-600 hover:bg-rose-50 transition-colors">
-                <LogOut size={20} />
-                <span className="text-sm font-medium">Log Out</span>
-              </button>
-            </div>
-          </nav>
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-rose-600 hover:bg-rose-50 transition-colors">
+              <LogOut size={20} />
+              <span className="text-sm font-medium">Log Out</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -327,7 +316,7 @@ export const EmployeeDashboard: React.FC = () => {
               </button>
             </div>
             <div className="relative flex items-center gap-2">
-              <button 
+              <button
                 onClick={() => setShowNotifications(!showNotifications)}
                 className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none"
               >
@@ -336,24 +325,24 @@ export const EmployeeDashboard: React.FC = () => {
                   <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
                 )}
               </button>
-              
+
               {showNotifications && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                   <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
                     <span className="font-semibold text-sm text-slate-900">Notifications</span>
                     <div className="flex gap-3">
-                        <button 
-                            onClick={() => {
-                                const idsToClear = requests.filter(r => r.status !== 'pending').map(r => r.id);
-                                const newCleared = [...new Set([...clearedIds, ...idsToClear])];
-                                setClearedIds(newCleared);
-                                localStorage.setItem('clearedNotifications', JSON.stringify(newCleared));
-                            }}
-                            className="text-xs text-slate-500 hover:text-slate-800 font-medium"
-                        >
-                            Clear
-                        </button>
-                        <button onClick={() => setShowNotifications(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Close</button>
+                      <button
+                        onClick={() => {
+                          const idsToClear = requests.filter(r => r.status !== 'pending').map(r => r.id);
+                          const newCleared = [...new Set([...clearedIds, ...idsToClear])];
+                          setClearedIds(newCleared);
+                          localStorage.setItem('clearedNotifications', JSON.stringify(newCleared));
+                        }}
+                        className="text-xs text-slate-500 hover:text-slate-800 font-medium"
+                      >
+                        Clear
+                      </button>
+                      <button onClick={() => setShowNotifications(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Close</button>
                     </div>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
@@ -372,9 +361,9 @@ export const EmployeeDashboard: React.FC = () => {
                                   Your <span className="font-medium capitalize">{req.type}</span> leave for {new Date(req.startDate).toLocaleDateString()} was {req.status}.
                                 </p>
                                 <p className="text-[10px] text-slate-400 mt-1">
-                                    {req.reviewedAt 
-                                        ? new Date(req.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
-                                        : 'Recently'}
+                                  {req.reviewedAt
+                                    ? new Date(req.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                    : 'Recently'}
                                 </p>
                               </div>
                             </div>
@@ -766,11 +755,11 @@ export const EmployeeDashboard: React.FC = () => {
               <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-md">
                 <CheckCircle size={32} className="text-white" />
               </div>
-                <h3 className="text-xl font-bold text-white mb-2">Session Recorded!</h3>
-                <p className="text-blue-100">
-                  {new Date(summaryModal.data.checkOut).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Session Recorded!</h3>
+              <p className="text-blue-100">
+                {new Date(summaryModal.data.checkOut).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
             <div className="p-6 space-y-4">
               <div className="flex justify-between items-center mb-6 pb-6 border-b border-slate-100">
                 <span className="text-slate-500 text-sm">Total Work Hours</span>
