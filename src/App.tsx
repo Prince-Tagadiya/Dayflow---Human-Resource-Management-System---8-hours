@@ -16,20 +16,21 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/activate" element={<Activate />} />
+          <Route path="/signup" element={<Navigate to="/activate" replace />} />
           <Route path="/setup" element={<SetupAdmin />} />
-          
+
           <Route path="/dashboard/hr" element={
             <AdminGuard>
               <AdminDashboard />
             </AdminGuard>
           } />
-          
+
           <Route path="/dashboard/employee" element={
             <EmployeeGuard>
               {/* Placeholder for Employee Dashboard - To be built */}
               <div className="p-8 text-center">
-                 <h1 className="text-2xl font-bold">Employee Dashboard</h1>
-                 <p>Welcome! Your secure portal is under construction.</p>
+                <h1 className="text-2xl font-bold">Employee Dashboard</h1>
+                <p>Welcome! Your secure portal is under construction.</p>
               </div>
             </EmployeeGuard>
           } />

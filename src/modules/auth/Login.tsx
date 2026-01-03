@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Loader2, Lock, User } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { loginSchema, type LoginFormData } from '../../types/forms';
-import { useAuth } from '../../auth/AuthContext';
+
 
 export const Login: React.FC = () => {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
@@ -14,42 +14,42 @@ export const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
+
 
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError(null);
       setLoading(true);
       const user = await AuthService.login(data.loginId, data.password);
-      
+
       // Dynamic Redirect based on Role
       // We need to know if they are Admin or Employee to send them to the right route.
       // Since Claims might delay, let's peek at Firestore quickly.
-      
+
       try {
-          const { doc, getDoc } = await import('firebase/firestore');
-          const { db } = await import('../../firebase/firebase');
-          
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-              const role = userDoc.data().role;
-              console.log("Login Redirect: Found role", role);
-              
-              if (role === 'admin') {
-                  navigate('/dashboard/hr');
-              } else if (role === 'employee') {
-                  navigate('/dashboard/employee');
-              } else {
-                  console.warn("Unknown role, going to root");
-                  navigate('/');
-              }
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { db } = await import('../../firebase/firebase');
+
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const role = userDoc.data().role;
+          console.log("Login Redirect: Found role", role);
+
+          if (role === 'admin') {
+            navigate('/dashboard/hr');
+          } else if (role === 'employee') {
+            navigate('/dashboard/employee');
           } else {
-               // Fallback
-               navigate('/');
+            console.warn("Unknown role, going to root");
+            navigate('/');
           }
-      } catch (e) {
-          console.error("Redirect logic error", e);
+        } else {
+          // Fallback
           navigate('/');
+        }
+      } catch (e) {
+        console.error("Redirect logic error", e);
+        navigate('/');
       }
 
     } catch (err: any) {
@@ -59,7 +59,7 @@ export const Login: React.FC = () => {
       if (err.code === 'auth/user-not-found') msg = 'User not found';
       if (err.code === 'auth/wrong-password') msg = 'Invalid password';
       if (err.code === 'auth/network-request-failed') msg = 'Network error - Check your connection';
-      
+
       setError(msg);
     } finally {
       setLoading(false);
@@ -79,18 +79,18 @@ export const Login: React.FC = () => {
         </div>
 
         <div className="mb-6 text-center">
-            <Link to="/activate" className="text-sm font-medium text-blue-600 hover:underline">
-              First time login? Activate your account here
-            </Link>
-          </div>
+          <Link to="/activate" className="text-sm font-medium text-blue-600 hover:underline">
+            First time login? Activate your account here
+          </Link>
+        </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Login ID / Email</label>
             <div className="relative">
-              <input 
+              <input
                 {...register('loginId')}
-                type="text" 
+                type="text"
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 placeholder="e.g. OIJODO2024001"
               />
@@ -102,9 +102,9 @@ export const Login: React.FC = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Password</label>
             <div className="relative">
-              <input 
+              <input
                 {...register('password')}
-                type="password" 
+                type="password"
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                 placeholder="Enter your password"
               />
@@ -119,8 +119,8 @@ export const Login: React.FC = () => {
             </div>
           )}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center"
           >
@@ -129,9 +129,9 @@ export const Login: React.FC = () => {
         </form>
 
         <div className="pt-4 text-center">
-            <p className="text-xs text-gray-400">
-                Authorized Personnel Only. <br/>Contact HR for account access.
-            </p>
+          <p className="text-xs text-gray-400">
+            Authorized Personnel Only. <br />Contact HR for account access.
+          </p>
         </div>
       </div>
     </div>
