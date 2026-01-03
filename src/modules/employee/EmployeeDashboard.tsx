@@ -24,6 +24,12 @@ export const EmployeeDashboard: React.FC = () => {
   // Data State
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [requests, setRequests] = useState<TimeOffRequest[]>([]);
+  const [balances, setBalances] = useState({
+      casual: { taken: 0, total: 12 },
+      sick: { taken: 0, total: 10 },
+      privilege: { taken: 0, total: 20 },
+      unpaid: { taken: 0, total: 0 }
+  });
   // const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]); // Future use
 
   // State for Check-In/Out Simulation
@@ -47,6 +53,9 @@ export const EmployeeDashboard: React.FC = () => {
                     // 2. Get Leaves
                     const l = await EmployeeService.getLeaveRequests(p.id);
                     setRequests(l);
+                    // 3. Get Balances
+                    const b = await EmployeeService.getLeaveBalances(p.id);
+                    setBalances(b);
                 }
              } catch (e) {
                  console.error("Failed to load employee data", e);
@@ -212,10 +221,15 @@ export const EmployeeDashboard: React.FC = () => {
             {view === 'apply-leave' ? (
                 <ApplyLeave 
                     profile={profile} 
+                    balances={balances}
                     onCancel={() => setView('dashboard')}
                     onSuccess={() => {
                         alert("Leave application submitted successfully!");
-                        // Refresh requests logic could go here
+                        // Refresh Data
+                        if (user as any) {
+                             EmployeeService.getLeaveRequests(profile!.id).then(setRequests);
+                             EmployeeService.getLeaveBalances(profile!.id).then(setBalances);
+                         }
                         setView('dashboard');
                     }}
                 />
@@ -315,9 +329,9 @@ export const EmployeeDashboard: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                             {[
-                                { title: 'Casual Leave', taken: 4, total: 12, color: 'bg-blue-500', icon: <Sun size={20} /> },
-                                { title: 'Sick Leave', taken: 8, total: 10, color: 'bg-rose-500', icon: <Thermometer size={20} /> },
-                                { title: 'Privilege Leave', taken: 15, total: 20, color: 'bg-emerald-500', icon: <CheckCircle size={20} /> },
+                                { title: 'Casual Leave', data: balances.casual, color: 'bg-blue-500', icon: <Sun size={20} /> },
+                                { title: 'Sick Leave', data: balances.sick, color: 'bg-rose-500', icon: <Thermometer size={20} /> },
+                                { title: 'Privilege Leave', data: balances.privilege, color: 'bg-emerald-500', icon: <CheckCircle size={20} /> },
                             ].map((leave, i) => (
                                 <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-4">
                                     <div className="mb-2 flex items-center gap-2 text-slate-500">
@@ -325,11 +339,11 @@ export const EmployeeDashboard: React.FC = () => {
                                         <span className="text-sm font-medium">{leave.title}</span>
                                     </div>
                                     <div className="flex items-baseline gap-1">
-                                        <span className="text-2xl font-bold text-slate-900">{leave.taken.toString().padStart(2, '0')}</span>
-                                        <span className="text-sm text-slate-500">/ {leave.total} days</span>
+                                        <span className="text-2xl font-bold text-slate-900">{leave.data.taken.toString().padStart(2, '0')}</span>
+                                        <span className="text-sm text-slate-500">/ {leave.data.total} days</span>
                                     </div>
                                     <div className="mt-3 h-1.5 w-full rounded-full bg-slate-200">
-                                        <div className={`h-1.5 rounded-full ${leave.color}`} style={{ width: `${(leave.taken / leave.total) * 100}%` }}></div>
+                                        <div className={`h-1.5 rounded-full ${leave.color}`} style={{ width: `${(leave.data.taken / leave.data.total) * 100}%` }}></div>
                                     </div>
                                 </div>
                             ))}
