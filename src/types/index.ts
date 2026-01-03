@@ -74,7 +74,7 @@ export interface SalaryComponent {
   baseComponentId?: string; // If percentage, what is it based on? (e.g., 'basic' or 'wage')
 }
 
-export interface EmployeeSalaryDetails {
+export type EmployeeSalaryDetails = {
   employeeId: string;
   ctc: number; // Cost to Company / Gross Wage
   basic: number;
@@ -86,7 +86,7 @@ export interface EmployeeSalaryDetails {
   pf: number; // Provident Fund
   pt: number; // Professional Tax
   netSalary: number;
-}
+};
 
 export interface PayrollRecord {
   id: string;
