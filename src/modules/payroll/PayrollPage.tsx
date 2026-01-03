@@ -67,32 +67,81 @@ export const PayrollPage: React.FC<PayrollPageProps> = ({
         </div>
       </div>
 
-      {/* Wage Configuration (Admin Only) */}
-      {allowEdit && (
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Configuration</h2>
-            <div className="flex items-end gap-4 max-w-sm">
-                <div className="w-full">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Gross Wage (₹)</label>
+      {/* Wage Configuration */}
+      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden">
+        <div className="flex justify-between items-start mb-6">
+            <h2 className="text-lg font-semibold text-slate-900">Wage Configuration</h2>
+            <span className="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-1 rounded-md uppercase tracking-wider">Fixed Wage</span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Monthly Wage</label>
+                <div className="mt-2 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
                     <input 
-                        type="number" 
-                        value={wage} 
+                        type="number"
+                        value={wage}
                         onChange={handleWageChange}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        disabled={!allowEdit}
+                        className={`w-full pl-7 pr-16 py-2.5 border rounded-lg outline-none transition-all font-medium ${allowEdit ? 'border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500' : 'border-slate-100 bg-slate-50 text-slate-500'}`}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">/ Month</span>
+                </div>
+            </div>
+            
+            <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Yearly Wage</label>
+                <div className="mt-2 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
+                    <input 
+                        type="number"
+                        value={wage * 12}
+                        readOnly
+                        className="w-full pl-7 pr-16 py-2.5 border border-slate-100 bg-slate-50 text-slate-500 rounded-lg outline-none font-medium cursor-default"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-medium">/ Year</span>
+                </div>
+            </div>
+
+            <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Working days per week</label>
+                <div className="mt-2">
+                    <select 
+                        disabled={!allowEdit}
+                        className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all font-medium appearance-none bg-white ${allowEdit ? 'border-slate-300 focus:ring-2 focus:ring-blue-500' : 'border-slate-100 bg-slate-50 text-slate-500 pointer-events-none'}`}
+                        defaultValue="5 Days"
+                    >
+                        <option>5 Days</option>
+                        <option>6 Days</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Break Time</label>
+                <div className="mt-2">
+                    <input 
+                        type="text"
+                        defaultValue="45 mins"
+                        disabled={!allowEdit}
+                        className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all font-medium ${allowEdit ? 'border-slate-300 focus:ring-2 focus:ring-blue-500' : 'border-slate-100 bg-slate-50 text-slate-500'}`}
                     />
                 </div>
-                {onSave && (
-                    <button 
-                        onClick={() => onSave(details)}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
-                    >
-                        Save
-                    </button>
-                )}
             </div>
-            <p className="text-xs text-slate-500 mt-2">Updating the wage will automatically recalculate all components below.</p>
         </div>
-      )}
+        
+        {allowEdit && onSave && (
+            <div className="mt-6 flex justify-end border-t border-slate-100 pt-4">
+                <button 
+                    onClick={() => onSave(details)}
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors shadow-sm shadow-emerald-200"
+                >
+                    Save Changes
+                </button>
+            </div>
+        )}
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
