@@ -24,6 +24,7 @@ export const EmployeeDashboard: React.FC = () => {
   // State for Check-In/Out Simulation
   const [status, setStatus] = useState<'clocked-in' | 'clocked-out'>('clocked-out');
   const [checkInTime, setCheckInTime] = useState<string>('09:00'); // Default simulated time
+  const [checkOutTime, setCheckOutTime] = useState<string>('18:00'); // Default simulated time
   const [displayTime, setDisplayTime] = useState<string>('09:00'); // For the big display
 
   useEffect(() => {
@@ -80,9 +81,12 @@ export const EmployeeDashboard: React.FC = () => {
 
   const handleClockOut = () => {
     setStatus('clocked-out');
-    // Reset to real time
-    const now = new Date();
-    setDisplayTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+    // SIMULATION: Use the edited check-out time
+    const [hours, minutes] = checkOutTime.split(':');
+    const date = new Date();
+    date.setHours(parseInt(hours));
+    date.setMinutes(parseInt(minutes));
+    setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
   };
 
   return (
@@ -240,22 +244,24 @@ export const EmployeeDashboard: React.FC = () => {
                     </div>
 
                     {/* EDITABLE TIME SIMULATION SECTION */}
-                    {status === 'clocked-out' && (
-                        <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                                <div className="flex flex-col gap-1 w-full sm:w-auto">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Set Simulation Time</label>
-                                    <input 
-                                        type="time" 
-                                        value={checkInTime} 
-                                        onChange={(e) => setCheckInTime(e.target.value)}
-                                        className="block w-full sm:w-40 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
-                                    />
-                                    <p className="text-[10px] text-slate-400 mt-1">Select a time and click 'Clock In' below to verify.</p>
-                                </div>
-                             </div>
-                        </div>
-                    )}
+                    <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                            <div className="flex flex-col gap-1 w-full sm:w-auto">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    {status === 'clocked-out' ? 'Set Simulation Check-In Time' : 'Set Simulation Check-Out Time'}
+                                </label>
+                                <input 
+                                    type="time" 
+                                    value={status === 'clocked-out' ? checkInTime : checkOutTime}
+                                    onChange={(e) => status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value)}
+                                    className="block w-full sm:w-40 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
+                                />
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                    {status === 'clocked-out' ? "Select time and click 'Clock In'" : "Select time and click 'Clock Out'"}
+                                </p>
+                            </div>
+                         </div>
+                    </div>
 
                     <div className="mt-6 flex gap-3">
                       <button 
