@@ -213,9 +213,9 @@ export const EmployeeDashboard: React.FC = () => {
         setSummaryModal({
           show: true,
           data: {
-            date: end.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }),
-            checkIn: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-            checkOut: end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+            date: end.toISOString(),
+            checkIn: start.toISOString(),
+            checkOut: end.toISOString(),
             duration: `${hours}h ${mins}m`,
             isLate: isLate
           }
