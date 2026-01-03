@@ -6,9 +6,10 @@ interface EmployeeDirectoryViewProps {
     employees: EmployeeProfile[];
     attendance?: AttendanceRecord[]; // Optional for now to avoid breaking parent before update
     onAddEmployee: () => void;
+    onEmployeeClick?: (employee: EmployeeProfile) => void;
 }
 
-export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ employees, attendance = [], onAddEmployee }) => {
+export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ employees, attendance = [], onAddEmployee, onEmployeeClick }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'all' | 'present' | 'on_leave' | 'absent'>('all');
 
@@ -139,7 +140,11 @@ export const EmployeeDirectoryView: React.FC<EmployeeDirectoryViewProps> = ({ em
                     }
 
                     return (
-                        <div key={emp.id} className="group relative bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-lg hover:border-blue-500/30 transition-all duration-300 cursor-pointer">
+                        <div
+                            key={emp.id}
+                            onClick={() => onEmployeeClick?.(emp)}
+                            className="group relative bg-white rounded-xl border border-slate-200 p-6 flex flex-col items-center text-center hover:shadow-lg hover:border-blue-500/30 transition-all duration-300 cursor-pointer"
+                        >
                             {/* Status Indicator */}
                             <div className="absolute top-4 right-4" title={statusTitle}>
                                 <span className={`flex h-3 w-3 rounded-full ${statusColor}`}></span>
