@@ -47,6 +47,18 @@ export const EmployeeDashboard: React.FC = () => {
   const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(18, 0, 0, 0))));
   const [displayTime, setDisplayTime] = useState<string>('---'); // For the big display
 
+  // Summary Modal State
+  const [summaryModal, setSummaryModal] = useState<{
+    show: boolean;
+    data: {
+        date: string;
+        checkIn: string;
+        checkOut: string;
+        duration: string;
+        isLate: boolean;
+    } | null;
+  }>({ show: false, data: null });
+
   useEffect(() => {
     let unsubscribeLeaves: (() => void) | undefined;
     let unsubscribeAttendance: (() => void) | undefined;
@@ -145,11 +157,46 @@ export const EmployeeDashboard: React.FC = () => {
 
     // Use selected date-time directly
     const date = new Date(checkOutTime);
+    const dateStr = date.toISOString().split('T')[0];
 
     try {
       await EmployeeService.clockOut(profile.id, date.toISOString());
       setStatus('clocked-out');
       setDisplayTime(date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }));
+
+      // Prepare data for summary
+      const todayRecord = attendance.find(r => r.date === dateStr);
+      let checkInVal = todayRecord?.checkIn;
+      
+      // If not found in current state (edge case), try fetching
+      if (!checkInVal) {
+         const rec = await EmployeeService.getTodayAttendance(profile.id);
+         if (rec) checkInVal = rec.checkIn;
+      }
+
+      if (checkInVal) {
+        const start = new Date(checkInVal);
+        const end = date; // The clock out time we just sent
+        const diff = end.getTime() - start.getTime();
+        const hours = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        
+        // Define Late Threshold (e.g., 9:15 AM)
+        const shiftStart = new Date(start);
+        shiftStart.setHours(9, 15, 0, 0); // 9:15 AM limit
+        const isLate = start > shiftStart;
+
+        setSummaryModal({
+            show: true,
+            data: {
+                date: date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+                checkIn: start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                checkOut: end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                duration: `${hours}h ${mins}m`,
+                isLate
+            }
+        });
+      }
     } catch (e) {
       console.error("Clock out failed", e);
     }
@@ -617,6 +664,59 @@ export const EmployeeDashboard: React.FC = () => {
           )}
         </main>
       </div>
+
+       {/* Clock Out Summary Modal */}
+       {summaryModal.show && summaryModal.data && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="bg-blue-600 p-6 text-center text-white">
+                    <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-md">
+                        <CheckCircle size={32} className="text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold">Session Recorded!</h3>
+                    <p className="text-blue-100 text-sm mt-1">{summaryModal.data.date}</p>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                        <span className="text-slate-500 text-sm">Total Work Hours</span>
+                        <span className="text-xl font-bold text-slate-900">{summaryModal.data.duration}</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 p-3 rounded-lg text-center">
+                            <p className="text-xs text-slate-500 uppercase tracking-wide">Check In</p>
+                            <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkIn}</p>
+                        </div>
+                        <div className="bg-slate-50 p-3 rounded-lg text-center">
+                            <p className="text-xs text-slate-500 uppercase tracking-wide">Check Out</p>
+                            <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkOut}</p>
+                        </div>
+                    </div>
+
+                    <div className={`p-3 rounded-lg flex items-center justify-center gap-2 ${summaryModal.data.isLate ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {summaryModal.data.isLate ? (
+                            <>
+                                <Clock size={18} />
+                                <span className="font-medium">Late Arrival</span>
+                            </>
+                        ) : (
+                             <>
+                                <CheckCircle size={18} />
+                                <span className="font-medium">On Time</span>
+                            </>
+                        )}
+                    </div>
+
+                    <button 
+                        onClick={() => setSummaryModal({ show: false, data: null })}
+                        className="w-full py-2.5 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors mt-2"
+                    >
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
