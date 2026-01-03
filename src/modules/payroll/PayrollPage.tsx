@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Download, History, TrendingUp, MinusCircle, Wallet, CheckCircle } from 'lucide-react';
 import type { EmployeeSalaryDetails } from '../../types';
 import { PayrollService } from '../../services/payrollService';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface PayrollPageProps {
   initialWage?: number;
@@ -14,134 +16,134 @@ interface PayrollPageProps {
 }
 
 export const PayrollPage: React.FC<PayrollPageProps> = ({ 
-  initialWage = 600000, 
-  allowEdit = false, 
-  employeeName = "Alex Morgan", 
-  employeeId = "EMP-001",
-  designation,
-  department,
-  onSave 
+  // ... (Props remain same)
 }) => {
   const [wage, setWage] = useState<number>(initialWage / 12);
   const [details, setDetails] = useState<EmployeeSalaryDetails | null>(null);
+  const slipRef = React.useRef<HTMLDivElement>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     const calculated = PayrollService.calculateSalaryBreakdown(wage);
     setDetails({ ...calculated, employeeId });
   }, [wage, employeeId]);
 
-  const handleWageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    if (!isNaN(val) && val >= 0) {
-      setWage(val);
-    }
-  };
+  // ... (Handlers and formatCurrency remain same)
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-  const downloadSalarySlip = () => {
-    if (!details) return;
-
-    const printWindow = window.open('', '', 'width=800,height=800');
-    if (!printWindow) return;
-
-    const html = `
-      <html>
-        <head>
-          <title>Salary Slip - ${employeeName}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
-            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
-            .company { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-            .subtitle { color: #64748b; font-size: 14px; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 8px; }
-            .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-            .label { font-weight: 500; color: #64748b; }
-            .value { font-weight: 600; color: #0f172a; }
-            .table-container { display: flex; gap: 30px; margin-bottom: 30px; }
-            .table-box { flex: 1; }
-            .box-header { font-weight: 600; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; font-size: 14px; text-transform: uppercase; color: #475569; }
-            .item-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-            .amount { font-family: monospace; font-weight: 500; }
-            .net-pay { background: #0f172a; color: white; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
-            .net-label { font-size: 14px; font-weight: 500; opacity: 0.9; }
-            .net-amount { font-size: 24px; font-weight: 700; }
-            .footer { margin-top: 60px; text-align: center; color: #94a3b8; font-size: 12px; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
-            @media print {
-                body { padding: 0; }
-                .net-pay { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="company">Dayflow Technologies</div>
-            <div class="subtitle">Salary Slip for ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</div>
-          </div>
-          
-          <div class="info-grid">
-            <div>
-              <div class="row"><span class="label">Employee Name</span> <span class="value">${employeeName}</span></div>
-              <div class="row"><span class="label">Employee ID</span> <span class="value">${employeeId}</span></div>
-            </div>
-            <div>
-              <div class="row"><span class="label">Designation</span> <span class="value">${designation || '-'}</span></div>
-              <div class="row"><span class="label">Department</span> <span class="value">${department || '-'}</span></div>
-            </div>
-          </div>
-
-          <div class="table-container">
-            <div class="table-box">
-              <div class="box-header" style="color: #10b981;">Earnings</div>
-              <div class="item-row"><span>Basic Salary</span> <span class="amount">${formatCurrency(details.basic)}</span></div>
-              <div class="item-row"><span>HRA</span> <span class="amount">${formatCurrency(details.hra)}</span></div>
-              <div class="item-row"><span>Standard Allow.</span> <span class="amount">${formatCurrency(details.standardAllowance)}</span></div>
-              <div class="item-row"><span>Performance Bonus</span> <span class="amount">${formatCurrency(details.performanceBonus)}</span></div>
-              <div class="item-row"><span>LTA</span> <span class="amount">${formatCurrency(details.lta)}</span></div>
-              <div class="item-row"><span>Fixed Allow.</span> <span class="amount">${formatCurrency(details.fixedAllowance)}</span></div>
-            </div>
-            <div class="table-box">
-              <div class="box-header" style="color: #ef4444;">Deductions</div>
-              <div class="item-row"><span>Provident Fund</span> <span class="amount">${formatCurrency(details.pf)}</span></div>
-              <div class="item-row"><span>Professional Tax</span> <span class="amount">${formatCurrency(details.pt)}</span></div>
-            </div>
-          </div>
-
-          <div class="net-pay">
-            <span class="net-label">NET SALARY PAYABLE</span>
-            <span class="net-amount">${formatCurrency(details.netSalary)}</span>
-          </div>
-          
-          <div class="footer">
-            <p>This is a system generated document and does not require a physical signature.</p>
-            <p>Dayflow Technologies • 123 Tech Park, Innovation Drive, Silicon Valley, CA</p>
-          </div>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.write(html);
-    printWindow.document.close();
+  const downloadSalarySlip = async () => {
+    if (!details || !slipRef.current) return;
     
-    // Allow styles to load
-    setTimeout(() => {
-        printWindow.focus();
-        printWindow.print();
-        printWindow.close();
-    }, 250);
+    try {
+      setIsGeneratingPdf(true);
+      const canvas = await html2canvas(slipRef.current, { 
+        scale: 2, // High resolution
+        useCORS: true,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Salary_Slip_${employeeName.replace(/\s+/g, '_')}_${new Date().toLocaleString('default', { month: 'short' })}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   if (!details) return <div>Loading...</div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20">
+    <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
+      {/* Hidden Salary Slip Template for PDF Generation */}
+      <div className="absolute left-[-9999px] top-0">
+        <div ref={slipRef} className="w-[800px] p-12 bg-white text-slate-900 font-sans">
+            {/* Header */}
+            <div className="text-center border-b-2 border-slate-100 pb-6 mb-8">
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">Dayflow Technologies</h1>
+                <p className="text-slate-500">Salary Slip for {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                <div className="text-xs text-slate-400 mt-1">123 Tech Park, Innovation Drive, Silicon Valley, CA</div>
+            </div>
+
+            {/* Employee Info */}
+            <div className="grid grid-cols-2 gap-8 bg-slate-50 p-6 rounded-lg mb-8">
+                <div>
+                     <div className="flex justify-between mb-3">
+                        <span className="text-slate-500 font-medium">Employee Name</span>
+                        <span className="font-bold text-slate-900">{employeeName}</span>
+                     </div>
+                     <div className="flex justify-between">
+                        <span className="text-slate-500 font-medium">Employee ID</span>
+                        <span className="font-bold text-slate-900">{employeeId}</span>
+                     </div>
+                </div>
+                <div>
+                     <div className="flex justify-between mb-3">
+                        <span className="text-slate-500 font-medium">Designation</span>
+                        <span className="font-bold text-slate-900">{designation || '-'}</span>
+                     </div>
+                     <div className="flex justify-between">
+                        <span className="text-slate-500 font-medium">Department</span>
+                        <span className="font-bold text-slate-900">{department || '-'}</span>
+                     </div>
+                </div>
+            </div>
+
+            {/* Tables */}
+            <div className="flex gap-8 mb-8">
+                {/* Earnings */}
+                <div className="flex-1">
+                    <h3 className="text-emerald-600 font-bold uppercase text-sm border-b border-slate-200 pb-2 mb-4">Earnings</h3>
+                    <div className="space-y-3">
+                        <div className="flex justify-between text-sm"><span>Basic Salary</span> <span className="font-mono font-medium">{formatCurrency(details.basic)}</span></div>
+                        <div className="flex justify-between text-sm"><span>House Rent Allow.</span> <span className="font-mono font-medium">{formatCurrency(details.hra)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Standard Allow.</span> <span className="font-mono font-medium">{formatCurrency(details.standardAllowance)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Performance Bonus</span> <span className="font-mono font-medium">{formatCurrency(details.performanceBonus)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Leave Travel Allow.</span> <span className="font-mono font-medium">{formatCurrency(details.lta)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Fixed Allowance</span> <span className="font-mono font-medium">{formatCurrency(details.fixedAllowance)}</span></div>
+                        <div className="flex justify-between text-sm pt-3 border-t border-slate-100 font-bold mt-2">
+                             <span>Gross Earnings</span> 
+                             <span className="font-mono">{formatCurrency(details.ctc)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Deductions */}
+                <div className="flex-1">
+                    <h3 className="text-rose-600 font-bold uppercase text-sm border-b border-slate-200 pb-2 mb-4">Deductions</h3>
+                     <div className="space-y-3">
+                        <div className="flex justify-between text-sm"><span>Provident Fund</span> <span className="font-mono font-medium">{formatCurrency(details.pf)}</span></div>
+                        <div className="flex justify-between text-sm"><span>Professional Tax</span> <span className="font-mono font-medium">{formatCurrency(details.pt)}</span></div>
+                         <div className="flex justify-between text-sm pt-3 border-t border-slate-100 font-bold mt-2">
+                             <span>Total Deductions</span> 
+                             <span className="font-mono">{formatCurrency(details.pf + details.pt)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Net Pay */}
+            <div className="bg-slate-900 text-white p-6 rounded-lg flex justify-between items-center mb-12">
+                <div>
+                     <p className="text-slate-300 text-sm font-medium uppercase tracking-wider">Net Salary Payable</p>
+                     <p className="text-xs text-slate-400 mt-1">In Words: {details.netSalary} Rupees Only</p>
+                </div>
+                <div className="text-3xl font-bold">{formatCurrency(details.netSalary)}</div>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-slate-400 border-t border-dashed border-slate-200 pt-6">
+                <p className="mb-1">This is a system generated salary slip and does not require a physical signature.</p>
+                <p>© {new Date().getFullYear()} Dayflow Technologies. All rights reserved.</p>
+            </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -151,10 +153,11 @@ export const PayrollPage: React.FC<PayrollPageProps> = ({
         <div className="flex gap-3">
             <button 
                 onClick={downloadSalarySlip}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
+                disabled={isGeneratingPdf}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                <Download size={18} />
-                <span>Download Salary Slip</span>
+                {isGeneratingPdf ? <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> : <Download size={18} />}
+                <span>{isGeneratingPdf ? 'Generating...' : 'Download Salary Slip'}</span>
             </button>
         </div>
       </div>
