@@ -60,13 +60,14 @@ export const EmployeeService = {
     const q = query(
       collection(db, 'attendance'),
       where('employeeId', '==', employeeId),
-      orderBy('date', 'desc'),
       limit(10)
     );
 
     return onSnapshot(q, (snapshot: any) => {
       const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as AttendanceRecord[];
-      callback(data);
+      // Sort in memory to avoid index requirements
+      const sorted = data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      callback(sorted);
     });
   },
 
