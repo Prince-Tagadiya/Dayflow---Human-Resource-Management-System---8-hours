@@ -30,6 +30,10 @@ export const EmployeeDashboard: React.FC = () => {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [clearedIds, setClearedIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('clearedNotifications');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [balances, setBalances] = useState({
     casual: { taken: 0, total: 12 },
     sick: { taken: 0, total: 10 },
@@ -82,9 +86,9 @@ export const EmployeeDashboard: React.FC = () => {
               // Determine notifications from status changes
               const newNotifications: any[] = [];
               l.forEach(req => {
-                if (req.status !== 'pending' && req.reviewedAt) {
+                if (req.status !== 'pending' && req.reviewedAt && !clearedIds.includes(req.id)) {
                   newNotifications.push({
-                    id: `notif_${req.id}_${req.status}`,
+                    id: req.id,
                     title: `Leave ${req.status.charAt(0).toUpperCase() + req.status.slice(1)}`,
                     message: `Your ${req.type} leave request for ${req.startDate} has been ${req.status}.`,
                     time: req.reviewedAt,
@@ -92,12 +96,7 @@ export const EmployeeDashboard: React.FC = () => {
                   });
                 }
               });
-              setNotifications(prev => {
-                const existingIds = new Set(prev.map(n => n.id));
-                const fresh = newNotifications.filter(n => !existingIds.has(n.id));
-                return [...fresh, ...prev].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-              });
-
+              setNotifications(newNotifications.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()));
               setRequests(l);
               EmployeeService.getLeaveBalances(p.id).then(setBalances);
             });
@@ -139,7 +138,7 @@ export const EmployeeDashboard: React.FC = () => {
       if (unsubscribeLeaves) unsubscribeLeaves();
       if (unsubscribeAttendance) unsubscribeAttendance();
     };
-  }, [user]);
+  }, [user, clearedIds]);
 
   // Update clock every minute for display when clocked out
   useEffect(() => {
@@ -216,12 +215,17 @@ export const EmployeeDashboard: React.FC = () => {
   };
 
   const clearNotifications = () => {
-    setNotifications([]);
+    const idsToClear = notifications.map(n => n.id);
+    const newCleared = [...new Set([...clearedIds, ...idsToClear])];
+    setClearedIds(newCleared);
+    localStorage.setItem('clearedNotifications', JSON.stringify(newCleared));
     setShowNotifications(false);
   };
 
   const removeNotification = (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    const newCleared = [...new Set([...clearedIds, id])];
+    setClearedIds(newCleared);
+    localStorage.setItem('clearedNotifications', JSON.stringify(newCleared));
   };
 
   const getInitials = () => {
@@ -581,7 +585,7 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                    <h3 className="text-base font-bold text-slate-900 mb-6 uppercase tracking-wider text-xs text-slate-400 font-display">Recent Activity</h3>
+                    <h3 className="text-base font-semibold text-slate-900 mb-6 font-display">Recent Activity</h3>
                     <div className="flow-root max-h-[400px] overflow-y-auto pr-2">
                       <ul role="list" className="-mb-8">
                         {(() => {
