@@ -372,10 +372,10 @@ export const EmployeeDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Pending Requests Table */}
+                  {/* Request Status Table */}
                   <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-900/5">
                     <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                      <h3 className="text-base font-semibold text-slate-900">Pending Requests</h3>
+                      <h3 className="text-base font-semibold text-slate-900">Request Status</h3>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm">
@@ -388,7 +388,7 @@ export const EmployeeDashboard: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {requests.filter(r => r.status === 'pending').length > 0 ? requests.filter(r => r.status === 'pending').map((req) => (
+                          {requests.length > 0 ? requests.slice(0, 5).map((req) => (
                             <tr key={req.id} className="hover:bg-slate-50 transition-colors">
                               <td className="px-6 py-4 text-slate-900 font-medium capitalize">{req.type} Leave</td>
                               <td className="px-6 py-4 text-slate-500">{req.startDate} to {req.endDate}</td>
@@ -396,11 +396,16 @@ export const EmployeeDashboard: React.FC = () => {
                                 {req.appliedAt ? new Date(req.appliedAt).toLocaleDateString() : (req.startDate ? new Date(req.startDate).toLocaleDateString() : 'N/A')}
                               </td>
                               <td className="px-6 py-4">
-                                <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 capitalize">{req.status}</span>
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset capitalize ${req.status === 'approved' ? 'bg-green-50 text-green-700 ring-green-600/20' :
+                                    req.status === 'rejected' ? 'bg-red-50 text-red-700 ring-red-600/20' :
+                                      'bg-amber-50 text-amber-700 ring-amber-600/20'
+                                  }`}>
+                                  {req.status === 'approved' ? 'Accepted' : req.status === 'rejected' ? 'Declined' : 'Pending'}
+                                </span>
                               </td>
                             </tr>
                           )) : (
-                            <tr><td colSpan={4} className="p-6 text-center text-slate-500">No pending requests</td></tr>
+                            <tr><td colSpan={4} className="p-6 text-center text-slate-500">No requests found</td></tr>
                           )}
                         </tbody>
                       </table>
