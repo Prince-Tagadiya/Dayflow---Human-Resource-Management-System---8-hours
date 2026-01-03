@@ -47,6 +47,16 @@ export const EmployeeDashboard: React.FC = () => {
   const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date()));
   const [displayTime, setDisplayTime] = useState<string>('---'); // For the big display
 
+  // Notification State
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [clearedIds, setClearedIds] = useState<string[]>(() => {
+    try {
+        return JSON.parse(localStorage.getItem('clearedNotifications') || '[]');
+    } catch {
+        return [];
+    }
+  });
+
   // Summary Modal State
   const [summaryModal, setSummaryModal] = useState<{
     show: boolean;
@@ -316,11 +326,68 @@ export const EmployeeDashboard: React.FC = () => {
                 <span className="md:hidden">Out</span>
               </button>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
+            <div className="relative flex items-center gap-2">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none"
+              >
                 <Bell size={20} />
-                <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                {requests.filter(r => r.status !== 'pending' && !clearedIds.includes(r.id)).length > 0 && (
+                  <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+                )}
               </button>
+              
+              {showNotifications && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                  <div className="px-4 py-2 border-b border-slate-50 flex justify-between items-center">
+                    <span className="font-semibold text-sm text-slate-900">Notifications</span>
+                    <div className="flex gap-3">
+                        <button 
+                            onClick={() => {
+                                const idsToClear = requests.filter(r => r.status !== 'pending').map(r => r.id);
+                                const newCleared = [...new Set([...clearedIds, ...idsToClear])];
+                                setClearedIds(newCleared);
+                                localStorage.setItem('clearedNotifications', JSON.stringify(newCleared));
+                            }}
+                            className="text-xs text-slate-500 hover:text-slate-800 font-medium"
+                        >
+                            Clear
+                        </button>
+                        <button onClick={() => setShowNotifications(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Close</button>
+                    </div>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {requests.filter(r => r.status !== 'pending' && !clearedIds.includes(r.id)).length > 0 ? (
+                      requests
+                        .filter(r => r.status !== 'pending' && !clearedIds.includes(r.id))
+                        .sort((a, b) => new Date(b.reviewedAt || b.startDate).getTime() - new Date(a.reviewedAt || a.startDate).getTime())
+                        .slice(0, 5)
+                        .map(req => (
+                          <div key={req.id} className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-1 size-2 rounded-full shrink-0 ${req.status === 'approved' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">Request {req.status === 'approved' ? 'Approved' : 'Rejected'}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                  Your <span className="font-medium capitalize">{req.type}</span> leave for {new Date(req.startDate).toLocaleDateString()} was {req.status}.
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-1">
+                                    {req.reviewedAt 
+                                        ? new Date(req.reviewedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                                        : 'Recently'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="px-4 py-8 text-center text-slate-500 text-sm">
+                        No new notifications
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-3 pl-2 sm:border-l sm:border-slate-200 sm:pl-6">
               <div className="hidden text-right sm:block">
@@ -699,23 +766,29 @@ export const EmployeeDashboard: React.FC = () => {
               <div className="mx-auto bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mb-4 backdrop-blur-md">
                 <CheckCircle size={32} className="text-white" />
               </div>
-              <h3 className="text-xl font-bold">Session Recorded!</h3>
-              <p className="text-blue-100 text-sm mt-1">{summaryModal.data.date}</p>
-            </div>
+                <h3 className="text-xl font-bold text-white mb-2">Session Recorded!</h3>
+                <p className="text-blue-100">
+                  {new Date(summaryModal.data.checkOut).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
             <div className="p-6 space-y-4">
-              <div className="flex justify-between items-center py-2 border-b border-slate-100">
+              <div className="flex justify-between items-center mb-6 pb-6 border-b border-slate-100">
                 <span className="text-slate-500 text-sm">Total Work Hours</span>
                 <span className="text-xl font-bold text-slate-900">{summaryModal.data.duration}</span>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Check In</p>
-                  <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkIn}</p>
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-slate-500 font-medium mb-1 uppercase tracking-wider">Check In</p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {new Date(summaryModal.data.checkIn).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Check Out</p>
-                  <p className="font-semibold text-slate-900 mt-1">{summaryModal.data.checkOut}</p>
+                <div className="bg-slate-50 rounded-lg p-3 text-center">
+                  <p className="text-xs text-slate-500 font-medium mb-1 uppercase tracking-wider">Check Out</p>
+                  <p className="text-lg font-bold text-slate-900">
+                    {new Date(summaryModal.data.checkOut).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 </div>
               </div>
 
