@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Mail, Phone, Building2, Edit, AlertTriangle, Clock, Save } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Building2, Edit, AlertTriangle, Clock, Save, User, MapPin, Calendar, Lock } from 'lucide-react';
 import type { EmployeeProfile } from '../../types';
 import { PayrollService } from '../../services/payrollService';
 import { AdminService } from '../../services/adminService';
@@ -19,6 +19,65 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
     const [workingDays, setWorkingDays] = useState('5');
     const [breakTime, setBreakTime] = useState('45');
     const [isSaving, setIsSaving] = useState(false);
+
+    // Private Info Form State
+    const [privateInfo, setPrivateInfo] = useState({
+        firstName: employee.firstName || '',
+        lastName: employee.lastName || '',
+        dateOfBirth: '',
+        gender: 'Male',
+        email: employee.email || '',
+        phone: '',
+        address: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        department: employee.department || '',
+        jobTitle: employee.jobTitle || '',
+        startDate: employee.dateOfJoining || new Date().toISOString().split('T')[0]
+    });
+
+    // Calculate profile completion
+    const calculateProfileCompletion = () => {
+        const fields = Object.values(privateInfo);
+        const filledFields = fields.filter(f => f && f.trim() !== '').length;
+        return Math.round((filledFields / fields.length) * 100);
+    };
+
+    // Handle private info change
+    const handlePrivateInfoChange = (field: string, value: string) => {
+        setPrivateInfo(prev => ({ ...prev, [field]: value }));
+    };
+
+    // Save private info
+    const handleSavePrivateInfo = async () => {
+        setIsSaving(true);
+        try {
+            await AdminService.updateEmployee(employee.id, {
+                firstName: privateInfo.firstName,
+                lastName: privateInfo.lastName,
+                email: privateInfo.email,
+                department: privateInfo.department,
+                jobTitle: privateInfo.jobTitle
+            });
+            alert('Private information saved successfully!');
+            if (onUpdate) {
+                onUpdate({
+                    ...employee,
+                    firstName: privateInfo.firstName,
+                    lastName: privateInfo.lastName,
+                    email: privateInfo.email,
+                    department: privateInfo.department,
+                    jobTitle: privateInfo.jobTitle
+                });
+            }
+        } catch (error) {
+            console.error('Error saving private info:', error);
+            alert('Failed to save private information.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     // Handle wage input change - remove leading zeros
     const handleWageChange = (value: string) => {
@@ -227,7 +286,10 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-slate-900">Basic Salary</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-slate-900">Basic Salary</div>
+                                                    <div className="text-xs text-slate-500 mt-1">Define Basic salary from company cost compute it based on monthly Wages</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -248,7 +310,10 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                             </tr>
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-slate-900">House Rent Allowance</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-slate-900">House Rent Allowance</div>
+                                                    <div className="text-xs text-slate-500 mt-1">HRA provided to employees 50% of the basic salary</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -267,7 +332,10 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                             </tr>
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-slate-900">Standard Allowance</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-slate-900">Standard Allowance</div>
+                                                    <div className="text-xs text-slate-500 mt-1">A standard allowance is a predetermined, fixed amount of ₹4167 provided to employee</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -278,15 +346,18 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <span className="inline-flex items-center gap-1 text-sm text-slate-500">
-                                                        1 <span className="text-slate-400">%</span>
+                                                        - <span className="text-slate-400">%</span>
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="text-sm text-slate-600">Fixed Amount</span>
+                                                    <span className="text-sm text-slate-600">Fixed ₹4167</span>
                                                 </td>
                                             </tr>
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-slate-900">Performance Bonus</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-slate-900">Performance Bonus</div>
+                                                    <div className="text-xs text-slate-500 mt-1">Variable amount paid during payroll. The value defined by the company and calculated as a % of the basic salary</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -297,15 +368,18 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <span className="inline-flex items-center gap-1 text-sm text-slate-500">
-                                                        8 <span className="text-slate-400">%</span>
+                                                        8.33 <span className="text-slate-400">%</span>
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="text-sm text-slate-600">Variable</span>
+                                                    <span className="text-sm text-slate-600">8.33% of Basic</span>
                                                 </td>
                                             </tr>
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-slate-900">Leave Travel Allowance</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-slate-900">Leave Travel Allowance</div>
+                                                    <div className="text-xs text-slate-500 mt-1">LTA is paid by the company to employees to cover their travel expenses. and calculated as a % of the basic salary</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -316,7 +390,7 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                                 <td className="px-6 py-4 text-center">
                                                     <span className="inline-flex items-center gap-1 text-sm text-slate-500">
-                                                        8 <span className="text-slate-400">%</span>
+                                                        8.33 <span className="text-slate-400">%</span>
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -324,7 +398,10 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                             </tr>
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-slate-900">Fixed Allowance</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-slate-900">Fixed Allowance</div>
+                                                    <div className="text-xs text-slate-500 mt-1">Balancing figure calculated as: Wage - (Basic + HRA + Standard + Performance + LTA)</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -339,7 +416,7 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className="text-sm text-slate-600">Balancing Figure</span>
+                                                    <span className="text-sm text-slate-600">Wage - All Components</span>
                                                 </td>
                                             </tr>
 
@@ -350,7 +427,10 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                             </tr>
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-red-600">Provident Fund (PF)</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-red-600">Provident Fund (PF)</div>
+                                                    <div className="text-xs text-slate-500 mt-1">PF is calculated based on the basic salary (12% employee contribution)</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -369,7 +449,10 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                                                 </td>
                                             </tr>
                                             <tr className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 text-sm font-medium text-red-600">Professional Tax</td>
+                                                <td className="px-6 py-4">
+                                                    <div className="text-sm font-medium text-red-600">Professional Tax</div>
+                                                    <div className="text-xs text-slate-500 mt-1">Professional Tax deducted from the Gross salary</div>
+                                                </td>
                                                 <td className="px-6 py-4">
                                                     <input
                                                         type="text"
@@ -424,25 +507,263 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                     )}
 
                     {activeTab === 'private' && (
-                        <div className="bg-white rounded-xl border border-slate-200 p-6">
-                            <h2 className="text-lg font-bold text-slate-900 mb-4">Private Information</h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="text-sm text-slate-500">Employee ID</label>
-                                    <p className="font-medium text-slate-900">{employee.companyCode || employee.id}</p>
+                        <div className="lg:col-span-3 space-y-6">
+                            {/* Profile Header with Completion */}
+                            <div className="bg-white rounded-xl border border-slate-200 p-6">
+                                <div className="flex items-center gap-6">
+                                    <div className="w-20 h-20 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold">
+                                        {getInitials()}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h2 className="text-xl font-bold text-slate-900">{privateInfo.firstName} {privateInfo.lastName}</h2>
+                                        <p className="text-blue-600 font-medium">{privateInfo.jobTitle || 'No Title'}</p>
+                                        <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
+                                            <Building2 size={14} />
+                                            {employee.companyCode || employee.id}
+                                        </p>
+                                        <div className="mt-3">
+                                            <div className="flex justify-between text-sm mb-1">
+                                                <span className="text-slate-500">Profile Completion</span>
+                                                <span className="text-slate-700 font-medium">{calculateProfileCompletion()}%</span>
+                                            </div>
+                                            <div className="w-full bg-slate-200 rounded-full h-2">
+                                                <div
+                                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${calculateProfileCompletion()}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-sm text-slate-500">Date of Joining</label>
-                                    <p className="font-medium text-slate-900">{employee.dateOfJoining || 'N/A'}</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                {/* Left Column - Personal & Contact */}
+                                <div className="lg:col-span-2 space-y-6">
+                                    {/* Personal Information */}
+                                    <div className="bg-white rounded-xl border border-slate-200 p-6">
+                                        <div className="flex items-center gap-2 mb-6">
+                                            <User size={20} className="text-blue-600" />
+                                            <h3 className="text-lg font-bold text-slate-900">Personal Information</h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">First Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={privateInfo.firstName}
+                                                    onChange={(e) => handlePrivateInfoChange('firstName', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                    placeholder="Enter first name"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Last Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={privateInfo.lastName}
+                                                    onChange={(e) => handlePrivateInfoChange('lastName', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                    placeholder="Enter last name"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Date of Birth</label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="date"
+                                                        value={privateInfo.dateOfBirth}
+                                                        onChange={(e) => handlePrivateInfoChange('dateOfBirth', e.target.value)}
+                                                        className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Gender</label>
+                                                <select
+                                                    value={privateInfo.gender}
+                                                    onChange={(e) => handlePrivateInfoChange('gender', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                                                >
+                                                    <option value="Male">Male</option>
+                                                    <option value="Female">Female</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Contact Details */}
+                                    <div className="bg-white rounded-xl border border-slate-200 p-6">
+                                        <div className="flex items-center gap-2 mb-6">
+                                            <Mail size={20} className="text-blue-600" />
+                                            <h3 className="text-lg font-bold text-slate-900">Contact Details</h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Email Address</label>
+                                                <div className="relative">
+                                                    <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="email"
+                                                        value={privateInfo.email}
+                                                        onChange={(e) => handlePrivateInfoChange('email', e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                        placeholder="email@example.com"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Phone Number</label>
+                                                <div className="relative">
+                                                    <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="tel"
+                                                        value={privateInfo.phone}
+                                                        onChange={(e) => handlePrivateInfoChange('phone', e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                        placeholder="+1 (555) 000-0000"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Address</label>
+                                                <div className="relative">
+                                                    <MapPin size={18} className="absolute left-3 top-3 text-slate-400" />
+                                                    <textarea
+                                                        value={privateInfo.address}
+                                                        onChange={(e) => handlePrivateInfoChange('address', e.target.value)}
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                                                        rows={2}
+                                                        placeholder="Enter your full address"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">City</label>
+                                                <input
+                                                    type="text"
+                                                    value={privateInfo.city}
+                                                    onChange={(e) => handlePrivateInfoChange('city', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                    placeholder="City"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">State</label>
+                                                <input
+                                                    type="text"
+                                                    value={privateInfo.state}
+                                                    onChange={(e) => handlePrivateInfoChange('state', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                    placeholder="State"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Zip Code</label>
+                                                <input
+                                                    type="text"
+                                                    value={privateInfo.zipCode}
+                                                    onChange={(e) => handlePrivateInfoChange('zipCode', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                    placeholder="Zip Code"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-sm text-slate-500">Email</label>
-                                    <p className="font-medium text-slate-900">{employee.email}</p>
+
+                                {/* Right Column - Employment Data */}
+                                <div className="space-y-6">
+                                    <div className="bg-white rounded-xl border border-slate-200 p-6">
+                                        <div className="flex items-center gap-2 mb-6">
+                                            <Building2 size={20} className="text-orange-500" />
+                                            <h3 className="text-lg font-bold text-slate-900">Employment Data</h3>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5 flex items-center justify-between">
+                                                    <span>EMPLOYEE ID</span>
+                                                    <Lock size={14} className="text-slate-400" />
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={employee.companyCode || employee.id}
+                                                    readOnly
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 bg-slate-50 cursor-not-allowed"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Department</label>
+                                                <select
+                                                    value={privateInfo.department}
+                                                    onChange={(e) => handlePrivateInfoChange('department', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                                                >
+                                                    <option value="">Select Department</option>
+                                                    <option value="Engineering">Engineering</option>
+                                                    <option value="Design">Design</option>
+                                                    <option value="Marketing">Marketing</option>
+                                                    <option value="Sales">Sales</option>
+                                                    <option value="HR">Human Resources</option>
+                                                    <option value="Finance">Finance</option>
+                                                    <option value="Operations">Operations</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Job Title</label>
+                                                <select
+                                                    value={privateInfo.jobTitle}
+                                                    onChange={(e) => handlePrivateInfoChange('jobTitle', e.target.value)}
+                                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                                                >
+                                                    <option value="">Select Job Title</option>
+                                                    <option value="Software Engineer">Software Engineer</option>
+                                                    <option value="Senior Developer">Senior Developer</option>
+                                                    <option value="Lead Developer">Lead Developer</option>
+                                                    <option value="UI/UX Designer">UI/UX Designer</option>
+                                                    <option value="Product Manager">Product Manager</option>
+                                                    <option value="HR Manager">HR Manager</option>
+                                                    <option value="Marketing Specialist">Marketing Specialist</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 mb-1.5">Start Date</label>
+                                                <div className="relative">
+                                                    <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <input
+                                                        type="date"
+                                                        value={privateInfo.startDate}
+                                                        readOnly
+                                                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg text-slate-900 bg-slate-50 cursor-not-allowed"
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-slate-400 mt-1">Start date cannot be changed</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="text-sm text-slate-500">Login ID</label>
-                                    <p className="font-medium text-slate-900">{employee.loginId || 'N/A'}</p>
-                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={onBack}
+                                    className="px-6 py-2.5 border border-slate-200 rounded-lg text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSavePrivateInfo}
+                                    disabled={isSaving}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Save size={18} />
+                                    {isSaving ? 'Saving...' : 'Save Changes'}
+                                </button>
                             </div>
                         </div>
                     )}
@@ -498,34 +819,6 @@ export const EmployeeDetailView: React.FC<EmployeeDetailViewProps> = ({ employee
                         </div>
                     </div>
 
-                    {/* Recent Salary Updates */}
-                    <div className="bg-white rounded-xl border border-slate-200 p-5">
-                        <h3 className="font-bold text-slate-900 mb-4">Recent Salary Updates</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                                    <Clock size={16} className="text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-slate-900">
-                                        Updated <strong>Basic Salary</strong> component
-                                    </p>
-                                    <p className="text-xs text-slate-500 mt-0.5">2h ago</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                                    <Clock size={16} className="text-emerald-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-slate-900">
-                                        Wage updated to <strong>₹{monthlyWage.toLocaleString()}/month</strong>
-                                    </p>
-                                    <p className="text-xs text-slate-500 mt-0.5">Yesterday</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

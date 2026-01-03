@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Search, Download, Edit3, MoreVertical,
+    Search, MoreVertical,
     Calendar as CalendarIcon, ChevronDown, Users,
     Clock, AlertCircle, CheckCircle, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
@@ -14,10 +14,6 @@ interface AttendanceViewProps {
 
 export const AttendanceView: React.FC<AttendanceViewProps> = ({ employees, attendance, onUpdateStatus }) => {
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-
-    // Mock data for the chart since we don't have real historical data in this view yet
-    const weeklyTrends = [40, 65, 50, 85, 30, 15, 20];
-    const maxTrend = Math.max(...weeklyTrends);
 
     const toggleRow = (id: string) => {
         const newSelected = new Set(selectedRows);
@@ -141,26 +137,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ employees, atten
                         </div>
                     </div>
                 </div>
-
-                {/* Weekly Trends Chart */}
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between md:col-span-2 lg:col-span-4 xl:col-span-2">
-                    <div className="flex justify-between items-center mb-2">
-                        <p className="font-bold text-gray-900">Weekly Trends</p>
-                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+2.4%</span>
-                    </div>
-                    <p className="text-xs text-gray-400 mb-4">Last 7 Days</p>
-                    <div className="flex items-end justify-between h-16 gap-1">
-                        {weeklyTrends.map((val, i) => (
-                            <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                                <div
-                                    className="w-full bg-blue-500 rounded-t-sm hover:bg-blue-600 transition-colors"
-                                    style={{ height: `${(val / maxTrend) * 100}%`, opacity: 0.6 + (i / 10) }}
-                                ></div>
-                                <span className="text-[10px] text-gray-400">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][i]}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
 
             {/* Toolbar */}
@@ -193,19 +169,6 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({ employees, atten
                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                         </div>
                     </div>
-                </div>
-
-                <div className="flex gap-3 w-full md:w-auto justify-end">
-                    <button className="flex items-center gap-2 h-10 px-4 text-gray-600 bg-white border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all">
-                        <Download size={18} />
-                        Export
-                    </button>
-                    <button
-                        onClick={handleBulkEdit}
-                        className="flex items-center gap-2 h-10 px-4 text-white bg-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-700 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30 transition-all">
-                        <Edit3 size={18} />
-                        Bulk Edit
-                    </button>
                 </div>
             </div>
 

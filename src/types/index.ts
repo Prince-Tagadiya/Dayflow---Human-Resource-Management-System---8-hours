@@ -19,6 +19,7 @@ export interface EmployeeProfile {
   loginId: string; // System generated
   designation: string;
   department: string;
+  jobTitle?: string; // Job title
   dateOfJoining: string; // ISO Date
   isActive: boolean;
   companyCode?: string;
