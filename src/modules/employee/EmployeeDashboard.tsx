@@ -555,7 +555,7 @@ export const EmployeeDashboard: React.FC = () => {
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-slate-500 max-w-xs truncate" title={req.adminComments || ''}>
-                                {req.adminComments || '---'}
+                                {req.adminComments || req.reason || '---'}
                               </td>
                             </tr>
                           ))}
