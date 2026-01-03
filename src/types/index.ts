@@ -21,6 +21,7 @@ export interface EmployeeProfile {
   department: string;
   dateOfJoining: string; // ISO Date
   isActive: boolean;
+  companyCode?: string; // Custom Employee Code
   
   // Explicitly excluding salary data from this shared interface
 }
