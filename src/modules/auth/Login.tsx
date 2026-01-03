@@ -22,6 +22,15 @@ export const Login: React.FC = () => {
       setLoading(true);
       const user = await AuthService.login(data.loginId, data.password);
       
+      // 2. Strict Email Verification Check
+      if (!user.emailVerified) {
+          // Exception: The master admin (hr@dayflow.app) might not be verified if created manually
+          if (user.email !== 'hr@dayflow.app') {
+             await AuthService.logout();
+             throw new Error("Email not verified. Please check your inbox or spam folder.");
+          }
+      }
+
       // Dynamic Redirect based on Role
       // We need to know if they are Admin or Employee to send them to the right route.
       // Since Claims might delay, let's peek at Firestore quickly.
