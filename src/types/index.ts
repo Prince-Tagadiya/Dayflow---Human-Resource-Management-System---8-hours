@@ -22,7 +22,7 @@ export interface EmployeeProfile {
   dateOfJoining: string; // ISO Date
   isActive: boolean;
   companyCode?: string; // Custom Employee Code
-  
+
   // Explicitly excluding salary data from this shared interface
 }
 
@@ -59,6 +59,7 @@ export interface TimeOffRequest {
   status: 'pending' | 'approved' | 'rejected';
   approverId?: string; // Admin UID
   reviewedAt?: string;
+  appliedAt?: string;
   adminComments?: string;
 }
 

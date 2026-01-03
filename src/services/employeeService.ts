@@ -1,5 +1,5 @@
 import { db } from '../firebase/firebase';
-import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import type { TimeOffRequest, AttendanceRecord, EmployeeProfile } from '../types';
 
 export const EmployeeService = {
@@ -22,7 +22,7 @@ export const EmployeeService = {
   getProfileByUid: async (uid: string) => {
     try {
       const q = query(
-        collection(db, 'employees'), 
+        collection(db, 'employees'),
         where('uid', '==', uid),
         limit(1)
       );
@@ -55,20 +55,35 @@ export const EmployeeService = {
     }
   },
 
-  // Fetch Leave Requests
+  // Fetch Leave Requests (Static)
   getLeaveRequests: async (employeeId: string) => {
     try {
       const q = query(
         collection(db, 'timeOffRequests'),
-        where('employeeId', '==', employeeId),
-        orderBy('startDate', 'desc')
+        where('employeeId', '==', employeeId)
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
+      // Sort in memory to avoid needing a Firestore index for simple setups
+      return data.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
     } catch (error) {
       console.error("Error fetching leaves:", error);
       return [];
     }
+  },
+
+  // Real-time listener for Leave Requests
+  subscribeToLeaveRequests: (employeeId: string, callback: (requests: TimeOffRequest[]) => void) => {
+    const q = query(
+      collection(db, 'timeOffRequests'),
+      where('employeeId', '==', employeeId)
+    );
+
+    return onSnapshot(q, (snapshot: any) => {
+      const data = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as TimeOffRequest[];
+      const sorted = data.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+      callback(sorted);
+    });
   },
 
   // Apply for Leave
@@ -120,8 +135,8 @@ export const EmployeeService = {
         // NOTE: Does not account for weekends/holidays in this simple version, 
         // but sufficient for now as per "make this real".
         const diffTime = Math.abs(end.getTime() - start.getTime());
-        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
-        
+        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
         if (req.type in taken) {
           taken[req.type as keyof typeof taken] += days;
         }
@@ -136,13 +151,13 @@ export const EmployeeService = {
       };
 
     } catch (error) {
-       console.error("Error calculating balances:", error);
-       return {
-          casual: { taken: 0, total: 12 },
-          sick: { taken: 0, total: 10 },
-          privilege: { taken: 0, total: 20 },
-          unpaid: { taken: 0, total: 0 }
-       };
+      console.error("Error calculating balances:", error);
+      return {
+        casual: { taken: 0, total: 12 },
+        sick: { taken: 0, total: 10 },
+        privilege: { taken: 0, total: 20 },
+        unpaid: { taken: 0, total: 0 }
+      };
     }
   }
 };
