@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
 
 // Helper to construct email from login ID if needed, or assume Login ID is email-like

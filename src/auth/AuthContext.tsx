@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User as FirebaseUser, onIdTokenChanged, IdTokenResult } from 'firebase/auth';
+import { onIdTokenChanged, type IdTokenResult, type User as FirebaseUser } from 'firebase/auth';
 import { auth } from '../firebase/firebase';
-import { UserRole } from '../types';
+import type { UserRole } from '../types';
 
 interface AuthContextType {
   user: FirebaseUser | null;
