@@ -1,19 +1,39 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../auth/AuthContext';
-import { LogOut, Users, UserPlus, FileText, Settings, Menu } from 'lucide-react';
+import { LogOut, Users, UserPlus, FileText, Settings, Menu, Calendar, ClipboardCheck } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
+import { EmployeeList } from './components/EmployeeList';
+import { AttendanceRecords } from './components/AttendanceRecords';
+import { LeaveApprovals } from './components/LeaveApprovals';
+
+type Tab = 'employees' | 'attendance' | 'leaves' | 'payroll' | 'settings';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<Tab>('employees');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Hack to force refresh list
 
   const handleLogout = async () => {
     await AuthService.logout();
     navigate('/login');
+  };
+
+  const refreshList = () => {
+      setRefreshKey(prev => prev + 1);
+  };
+
+  const renderContent = () => {
+      switch(activeTab) {
+          case 'employees': return <EmployeeList key={refreshKey} />;
+          case 'attendance': return <AttendanceRecords />;
+          case 'leaves': return <LeaveApprovals />;
+          default: return <div className="text-center p-10 text-gray-500">Module under development</div>;
+      }
   };
 
   return (
@@ -27,18 +47,37 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <nav className="flex-1 space-y-2">
-            <a href="#" className="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg font-medium">
+            <button 
+                onClick={() => { setActiveTab('employees'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'employees' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
               <Users size={20} />
               Employees
-            </a>
-            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg font-medium transition-colors">
+            </button>
+            
+            <button 
+                onClick={() => { setActiveTab('attendance'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'attendance' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <Calendar size={20} />
+              Attendance
+            </button>
+
+            <button 
+                onClick={() => { setActiveTab('leaves'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'leaves' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <ClipboardCheck size={20} />
+              Leaves
+            </button>
+
+            <button 
+                onClick={() => { setActiveTab('payroll'); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === 'payroll' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
               <FileText size={20} />
               Payroll
-            </a>
-            <a href="#" className="flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg font-medium transition-colors">
-              <Settings size={20} />
-              Settings
-            </a>
+            </button>
           </nav>
 
           <div className="pt-6 border-t border-gray-100">
@@ -75,26 +114,30 @@ export const AdminDashboard: React.FC = () => {
           <div className="max-w-6xl mx-auto space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
-                <p className="text-gray-500 mt-1">Manage onboarding, roles, and profiles.</p>
+                <h1 className="text-2xl font-bold text-gray-900 capitalize">
+                    {activeTab === 'employees' ? 'Employee Management' : activeTab}
+                </h1>
+                <p className="text-gray-500 mt-1">
+                    {activeTab === 'employees' && 'Manage onboarding, roles, and profiles.'}
+                    {activeTab === 'attendance' && 'Track daily attendance records.'}
+                    {activeTab === 'leaves' && 'Approve or reject leave requests.'}
+                </p>
               </div>
-              <button 
-                onClick={() => setShowCreateModal(true)}
-                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-colors"
-              >
-                <UserPlus size={20} />
-                Create Employee
-              </button>
+              
+              {activeTab === 'employees' && (
+                  <button 
+                    onClick={() => setShowCreateModal(true)}
+                    className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition-colors"
+                  >
+                    <UserPlus size={20} />
+                    Create Employee
+                  </button>
+              )}
             </div>
 
-            {/* Empty State or Table Placeholder */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                <Users size={32} />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900">No Employees Found</h3>
-              <p className="text-gray-500 mt-1 max-w-sm mx-auto">Start by adding your first employee to the system. They will receive their credentials immediately.</p>
-            </div>
+            {/* Content Area */}
+            {renderContent()}
+
           </div>
         </div>
       </main>
@@ -104,8 +147,8 @@ export const AdminDashboard: React.FC = () => {
         <CreateEmployeeModal 
             onClose={() => setShowCreateModal(false)}
             onSuccess={() => {
-                // Refresh list
-                console.log("Employee list should refresh");
+                refreshList();
+                setShowCreateModal(false);
             }}
         />
       )}

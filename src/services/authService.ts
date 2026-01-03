@@ -1,24 +1,41 @@
 import { signInWithEmailAndPassword, signOut, type User as FirebaseUser } from 'firebase/auth';
-import { auth } from '../firebase/firebase';
-
-// Helper to construct email from login ID if needed, or assume Login ID is email-like
-// Implementation assumption: Login ID is mapped to a system email domain or is the email itself.
-// e.g. loginId: "EMP-2024-001" -> email: "EMP-2024-001@dayflow.app"
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../firebase/firebase';
 
 const SYSTEM_EMAIL_DOMAIN = 'dayflow.app';
 
 export const AuthService = {
   login: async (loginId: string, password: string) => {
-    // Ensure loginId is treated as email if it's not already
-    // Force uppercase ID to be supported if user typed it, but email auth is case insensitive? 
-    // Actually, create was likely using exactly what was generated.
-    // Let's assume the ID part is case-insensitive for user comfort, but we should match generation.
-    // Generated ID is e.g. ODJODO20240001
-    
     let email = loginId;
+
+    // If it looks like an ID (no @), look up the real email
     if (!loginId.includes('@')) {
-        // If it's a raw ID, map to system domain
-        email = `${loginId}@${SYSTEM_EMAIL_DOMAIN}`;
+        try {
+            // 1. Try fetching directly by ID from employees collection (Best case: ID matches doc ID)
+            const empRef = doc(db, 'employees', loginId);
+            const empSnap = await getDoc(empRef);
+
+            if (empSnap.exists() && empSnap.data().email) {
+                email = empSnap.data().email;
+            } else {
+                // 2. Fallback: Search in use collection 'employeeId' field just in case
+                 const q = query(collection(db, 'users'), where('employeeId', '==', loginId));
+                 const querySnapshot = await getDocs(q);
+                 if (!querySnapshot.empty) {
+                     email = querySnapshot.docs[0].data().email;
+                 } else {
+                     // 3. Last resort: It might be a system admin logging in with pseudo-email logic if we kept that
+                     // But strictly speaking, if not found, it's likely an error.
+                     // We'll let it try the system domain fallback or just fail.
+                     // Let's assume the old system fallback for backward compatibility / admins.
+                     email = `${loginId}@${SYSTEM_EMAIL_DOMAIN}`;
+                 }
+            }
+        } catch (err) {
+            console.error("Error looking up employee email:", err);
+            // Fallback to trying as straight ID
+            email = `${loginId}@${SYSTEM_EMAIL_DOMAIN}`; 
+        }
     }
     
     try {
