@@ -22,6 +22,7 @@ export interface EmployeeProfile {
   dateOfJoining: string; // ISO Date
   isActive: boolean;
   companyCode?: string; // Custom Employee Code
+  ctc?: number; // Annual CTC
 
   // Explicitly excluding salary data from this shared interface
 }
@@ -59,7 +60,32 @@ export interface TimeOffRequest {
   status: 'pending' | 'approved' | 'rejected';
   approverId?: string; // Admin UID
   reviewedAt?: string;
+  appliedAt?: string;
   adminComments?: string;
+  createdAt: string;
+}
+
+export interface SalaryComponent {
+  id: string;
+  name: string;
+  type: 'earning' | 'deduction';
+  calculationType: 'fixed' | 'percentage';
+  value: number; // Amount or Percentage
+  baseComponentId?: string; // If percentage, what is it based on? (e.g., 'basic' or 'wage')
+}
+
+export interface EmployeeSalaryDetails {
+  employeeId: string;
+  ctc: number; // Cost to Company / Gross Wage
+  basic: number;
+  hra: number;
+  standardAllowance: number;
+  performanceBonus: number;
+  lta: number; // Leave Travel Allowance
+  fixedAllowance: number; // Balancing figure
+  pf: number; // Provident Fund
+  pt: number; // Professional Tax
+  netSalary: number;
 }
 
 export interface PayrollRecord {

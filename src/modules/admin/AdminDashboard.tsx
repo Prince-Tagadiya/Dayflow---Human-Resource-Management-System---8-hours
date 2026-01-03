@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 import { AttendanceView } from './AttendanceView';
 import { EmployeeDirectoryView } from './EmployeeDirectoryView';
+import { PayrollPage } from '../payroll/PayrollPage';
 import type { EmployeeProfile, AttendanceRecord, TimeOffRequest } from '../../types';
 
 export const AdminDashboard: React.FC = () => {
@@ -20,7 +21,9 @@ export const AdminDashboard: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeProfile[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [leaves, setLeaves] = useState<TimeOffRequest[]>([]);
-  // Payroll state removed as unused for now
+
+  // Payroll state
+  const [selectedPayrollEmployee, setSelectedPayrollEmployee] = useState<EmployeeProfile | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Computed Stats
@@ -410,9 +413,103 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </>
             )}
+
+            {activeTab === 'payroll' && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                {selectedPayrollEmployee ? (
+                   <div className="p-6">
+                      <button 
+                        onClick={() => setSelectedPayrollEmployee(null)}
+                        className="mb-4 text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1"
+                      >
+                         &larr; Back to Employee List
+                      </button>
+                      <PayrollPage 
+                        allowEdit={true}
+                        initialWage={selectedPayrollEmployee.ctc || 600000}
+                        employeeName={`${selectedPayrollEmployee.firstName} ${selectedPayrollEmployee.lastName}`}
+                        employeeId={selectedPayrollEmployee.companyCode || selectedPayrollEmployee.id}
+                        onSave={async (details) => {
+                            try {
+                                const empId = selectedPayrollEmployee.id;
+                                // Save CTC to Employee Profile
+                                await AdminService.updateEmployee(empId, { ctc: details.ctc });
+                                // Optionally save full breakdown to salaryStructures if needed, but CTC is enough for calculation
+                                alert("Salary configuration saved successfully!");
+                                setSelectedPayrollEmployee({ ...selectedPayrollEmployee, ctc: details.ctc }); // Optimistic update
+                                fetchData(); // Refresh all data
+                            } catch (e) {
+                                console.error(e);
+                                alert("Failed to save salary details.");
+                            }
+                        }}
+                      />
+                   </div>
+                ) : (
+                  <div className="p-6">
+                     <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-lg font-bold text-gray-900">Payroll Management</h2>
+                         <div className="relative">
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                            <input 
+                              type="text" 
+                              placeholder="Search employees..." 
+                              className="pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" 
+                            />
+                          </div>
+                      </div>
+                      
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 border-y border-gray-100">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                              <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                             {employees.map(emp => (
+                                <tr key={emp.id} className="hover:bg-gray-50/50 transition-colors">
+                                   <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="flex items-center gap-3">
+                                          <div className="size-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
+                                             {emp.firstName?.[0]}{emp.lastName?.[0]}
+                                          </div>
+                                          <div>
+                                              <p className="text-sm font-medium text-gray-900">{emp.firstName} {emp.lastName}</p>
+                                              <p className="text-xs text-gray-500">{emp.email}</p>
+                                          </div>
+                                      </div>
+                                   </td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{emp.department}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{emp.designation}</td>
+                                   <td className="px-6 py-4 whitespace-nowrap">
+                                      <StatusBadge status={emp.isActive ? 'Active' : 'Inactive'} />
+                                   </td>
+                                   <td className="px-6 py-4 whitespace-nowrap text-right">
+                                      <button 
+                                        onClick={() => setSelectedPayrollEmployee(emp)}
+                                        className="text-blue-600 hover:text-blue-700 font-medium text-sm border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-lg transition-colors hover:bg-blue-100"
+                                      >
+                                        Manage Salary
+                                      </button>
+                                   </td>
+                                </tr>
+                             ))}
+                          </tbody>
+                        </table>
+                      </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>
+
 
       {/* Modals */}
       {showCreateModal && (

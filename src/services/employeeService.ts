@@ -1,5 +1,5 @@
 import { db } from '../firebase/firebase';
-import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, addDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import type { TimeOffRequest, AttendanceRecord, EmployeeProfile } from '../types';
 
 export const EmployeeService = {
@@ -142,7 +142,7 @@ export const EmployeeService = {
     }
   },
 
-  // NEW: Real Attendance Tracking
+  // NEW: Real Attendance Tracking (Merged)
   clockIn: async (employeeId: string, customTime?: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
@@ -157,24 +157,37 @@ export const EmployeeService = {
         checkInTime = d.toISOString();
       }
 
-      const docRef = await addDoc(collection(db, 'attendance'), {
-        employeeId,
-        date: today,
-        checkIn: checkInTime,
-        checkOut: null,
-        status: 'present',
-        isLocked: false,
-        createdAt: new Date().toISOString()
-      });
-      return docRef.id;
+      // Check if record exists for today (Accepting upstream logic)
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '==', today),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        const docRef = await addDoc(collection(db, 'attendance'), {
+          employeeId,
+          date: today,
+          checkIn: checkInTime,
+          checkOut: null,
+          status: 'present',
+          isLocked: false,
+          createdAt: new Date().toISOString()
+        });
+        return docRef.id;
+      }
+      return snapshot.docs[0].id;
     } catch (error) {
       console.error("Error clocking in:", error);
       throw error;
     }
   },
 
-  clockOut: async (attendanceId: string, customTime?: string) => {
+  clockOut: async (employeeId: string, customTime?: string) => {
     try {
+      const today = new Date().toISOString().split('T')[0];
       let checkOutTime = new Date().toISOString();
 
       if (customTime) {
@@ -186,12 +199,24 @@ export const EmployeeService = {
         checkOutTime = d.toISOString();
       }
 
-      const { updateDoc, doc: fsDoc } = await import('firebase/firestore');
-      const ref = fsDoc(db, 'attendance', attendanceId);
-      await updateDoc(ref, {
-        checkOut: checkOutTime,
-        updatedAt: new Date().toISOString()
-      });
+      const q = query(
+        collection(db, 'attendance'),
+        where('employeeId', '==', employeeId),
+        where('date', '==', today),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const docId = snapshot.docs[0].id;
+        const ref = doc(db, 'attendance', docId);
+        await setDoc(ref, {
+          checkOut: checkOutTime,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        return docId;
+      }
+      return null;
     } catch (error) {
       console.error("Error clocking out:", error);
       throw error;

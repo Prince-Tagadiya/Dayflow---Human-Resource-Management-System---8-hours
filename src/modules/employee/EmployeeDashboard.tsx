@@ -9,9 +9,11 @@ import { AuthService } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 
 import { EmployeeService } from '../../services/employeeService';
-import type { EmployeeProfile, TimeOffRequest } from '../../types';
+import type { EmployeeProfile, TimeOffRequest, AttendanceRecord } from '../../types';
 
 import { ApplyLeave } from './ApplyLeave';
+import { ProfilePage } from './ProfilePage';
+import { PayrollPage } from '../payroll/PayrollPage';
 
 export const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -19,46 +21,54 @@ export const EmployeeDashboard: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // View State for Navigation
-  const [view, setView] = useState<'dashboard' | 'apply-leave'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'apply-leave' | 'profile' | 'payroll' | 'attendance'>('dashboard');
 
   // Data State
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [requests, setRequests] = useState<TimeOffRequest[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [balances, setBalances] = useState({
     casual: { taken: 0, total: 12 },
     sick: { taken: 0, total: 10 },
     privilege: { taken: 0, total: 20 },
     unpaid: { taken: 0, total: 0 }
   });
-  // const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]); // Future use
 
   // State for Check-In/Out Simulation
   const [status, setStatus] = useState<'clocked-in' | 'clocked-out'>('clocked-out');
-  const [currentAttendanceId, setCurrentAttendanceId] = useState<string | null>(null);
   const [checkInTime, setCheckInTime] = useState<string>('09:00'); // Default simulated time
   const [checkOutTime, setCheckOutTime] = useState<string>('18:00'); // Default simulated time
-  const [displayTime, setDisplayTime] = useState<string>('09:00'); // For the big display
+  const [displayTime, setDisplayTime] = useState<string>(''); // Current display time
 
   useEffect(() => {
+    let unsubscribeLeaves: (() => void) | undefined;
+    let unsubscribeAttendance: (() => void) | undefined;
+
     if (user?.uid) {
       const fetchEmployeeData = async () => {
         try {
-          // Try fetching by UID since we might not have employeeId in the user context directly
           const p = await EmployeeService.getProfileByUid(user.uid);
-
           if (p) {
             setProfile(p);
-            // 2. Get Leaves using the verified employee ID
-            const l = await EmployeeService.getLeaveRequests(p.id);
-            setRequests(l);
-            // 3. Get Balances
+
+            // 1. Static Balances
             const b = await EmployeeService.getLeaveBalances(p.id);
             setBalances(b);
 
-            // 4. Get Today's Attendance
+            // 2. Real-time Leaves (Using subscribe pattern if available, or fallback to polling/fetch)
+            if ((EmployeeService as any).subscribeToLeaveRequests) {
+              unsubscribeLeaves = (EmployeeService as any).subscribeToLeaveRequests(p.id, (l: TimeOffRequest[]) => {
+                setRequests(l);
+                EmployeeService.getLeaveBalances(p.id).then(setBalances);
+              });
+            } else {
+              const l = await EmployeeService.getLeaveRequests(p.id);
+              setRequests(l);
+            }
+
+            // 3. Real-time Attendance (Update status based on today)
             const todayAtt = await EmployeeService.getTodayAttendance(p.id);
             if (todayAtt) {
-              setCurrentAttendanceId(todayAtt.id);
               if (todayAtt.checkOut) {
                 setStatus('clocked-out');
                 const date = new Date(todayAtt.checkOut);
@@ -68,7 +78,13 @@ export const EmployeeDashboard: React.FC = () => {
                 const date = new Date(todayAtt.checkIn!);
                 setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
               }
+            } else {
+              setStatus('clocked-out');
             }
+
+            // Sync full history for table
+            const history = await EmployeeService.getAttendanceHistory(p.id);
+            setAttendance(history);
           }
         } catch (e) {
           console.error("Failed to load employee data", e);
@@ -76,18 +92,27 @@ export const EmployeeDashboard: React.FC = () => {
       };
       fetchEmployeeData();
     }
+    return () => {
+      if (unsubscribeLeaves) unsubscribeLeaves();
+      if (unsubscribeAttendance) unsubscribeAttendance();
+    };
   }, [user]);
 
   // Update clock every minute for display if not overriding
   useEffect(() => {
     const timer = setInterval(() => {
-      if (status === 'clocked-out') {
-        const now = new Date();
-        setDisplayTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+      const now = new Date();
+      if (status === 'clocked-out' && !displayTime.includes(':')) {
+        // Only auto-update if we don't have a fixed display time from a clock-in/out event
       }
-    }, 1000);
+      // If we want real-time clock when clocked out:
+      if (status === 'clocked-out' && view === 'dashboard') {
+        // Optional: Update displayTime to current real time
+        // setDisplayTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+      }
+    }, 60000);
     return () => clearInterval(timer);
-  }, [status]);
+  }, [status, view, displayTime]);
 
   const handleLogout = async () => {
     await AuthService.logout();
@@ -97,44 +122,53 @@ export const EmployeeDashboard: React.FC = () => {
   const handleClockIn = async () => {
     if (!profile) return;
     try {
-      const id = await EmployeeService.clockIn(profile.id, checkInTime);
-      setCurrentAttendanceId(id);
+      await EmployeeService.clockIn(profile.id, checkInTime);
       setStatus('clocked-in');
 
-      // Convert 24h input to 12h display format for the big clock
       const [hours, minutes] = checkInTime.split(':');
       const date = new Date();
       date.setHours(parseInt(hours));
       date.setMinutes(parseInt(minutes));
       setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+
+      // Refresh data
+      const history = await EmployeeService.getAttendanceHistory(profile.id);
+      setAttendance(history);
     } catch (e) {
       alert("Failed to clock in");
     }
   };
 
   const handleClockOut = async () => {
-    if (!currentAttendanceId) return;
+    if (!profile) return;
     try {
-      await EmployeeService.clockOut(currentAttendanceId, checkOutTime);
+      await EmployeeService.clockOut(profile.id, checkOutTime);
       setStatus('clocked-out');
-      // SIMULATION: Use the edited check-out time
+
       const [hours, minutes] = checkOutTime.split(':');
       const date = new Date();
       date.setHours(parseInt(hours));
       date.setMinutes(parseInt(minutes));
       setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+
+      // Refresh data
+      const history = await EmployeeService.getAttendanceHistory(profile.id);
+      setAttendance(history);
     } catch (e) {
       alert("Failed to clock out");
     }
   };
 
   const getInitials = () => {
-    if (profile?.firstName && profile?.lastName) {
-      return `${profile.firstName[0]}${profile.lastName[0]}`.toUpperCase();
+    const fName = profile?.firstName?.trim();
+    const lName = profile?.lastName?.trim();
+    if (fName && lName) {
+      return `${fName[0]}${lName[0]}`.toUpperCase();
     }
-    if (user?.displayName) {
-      const names = user.displayName.split(' ');
-      if (names.length >= 2) return `${names[0][0]}${names[1][0]}`.toUpperCase();
+    const dName = user?.displayName?.trim();
+    if (dName) {
+      const names = dName.split(/\s+/);
+      if (names.length >= 2) return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
       return names[0][0].toUpperCase();
     }
     return 'U';
@@ -158,22 +192,22 @@ export const EmployeeDashboard: React.FC = () => {
               <LayoutDashboard size={20} />
               <span className="text-sm font-medium">Dashboard</span>
             </button>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <User size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Profile</span>
-            </a>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <Clock size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Attendance</span>
-            </a>
+            <button onClick={() => setView('profile')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'profile' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <User size={20} />
+              <span className="text-sm font-medium">Profile</span>
+            </button>
+            <button onClick={() => setView('attendance')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'attendance' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <Clock size={20} />
+              <span className="text-sm font-medium">Attendance</span>
+            </button>
             <button onClick={() => setView('apply-leave')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'apply-leave' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
-              <Calendar size={20} className={view === 'apply-leave' ? '' : "group-hover:text-blue-600 transition-colors"} />
+              <Calendar size={20} />
               <span className="text-sm font-medium">Leaves</span>
             </button>
-            <a href="#" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-slate-600 hover:bg-slate-50 transition-colors group">
-              <CreditCard size={20} className="group-hover:text-blue-600 transition-colors" />
-              <span className="text-sm font-medium group-hover:text-slate-900">Payroll</span>
-            </a>
+            <button onClick={() => setView('payroll')} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${view === 'payroll' ? 'bg-blue-50 text-blue-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+              <CreditCard size={20} />
+              <span className="text-sm font-medium">Payroll</span>
+            </button>
           </nav>
 
           <nav className="flex flex-col gap-1">
@@ -198,7 +232,6 @@ export const EmployeeDashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex h-full flex-1 flex-col overflow-hidden relative">
-        {/* Top Header */}
         <header className="flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 sm:px-6 lg:px-8 z-10 sticky top-0">
           <div className="flex items-center gap-4 lg:hidden">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="flex items-center justify-center rounded-lg p-2 text-slate-600 hover:bg-slate-100">
@@ -210,17 +243,16 @@ export const EmployeeDashboard: React.FC = () => {
           <div className="hidden lg:block">
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <span className="cursor-pointer hover:text-slate-800" onClick={() => setView('dashboard')}>Dashboard</span>
-              {view === 'apply-leave' && (
+              {view !== 'dashboard' && (
                 <>
                   <ChevronDown size={14} className="-rotate-90" />
-                  <span className="font-semibold text-slate-900">Apply Leave</span>
+                  <span className="font-semibold text-slate-900 capitalize">{view.replace('-', ' ')}</span>
                 </>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-3 sm:gap-6">
-            {/* Search */}
             <div className="relative hidden sm:block">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <input
@@ -229,23 +261,19 @@ export const EmployeeDashboard: React.FC = () => {
                 type="text"
               />
             </div>
-
-            {/* Actions */}
             <div className="flex items-center gap-2">
               <button className="relative flex size-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 transition-colors">
                 <Bell size={20} />
                 <span className="absolute right-2 top-2 size-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
               </button>
             </div>
-
-            {/* User Dropdown */}
             <div className="flex items-center gap-3 pl-2 sm:border-l sm:border-slate-200 sm:pl-6">
               <div className="hidden text-right sm:block">
                 <p className="text-sm font-semibold text-slate-900">{profile?.firstName || user?.displayName || 'User'}</p>
                 <p className="text-xs text-slate-500">{profile?.designation || 'Employee'}</p>
               </div>
-              <button className="group relative size-9 overflow-hidden rounded-full bg-slate-200 ring-2 ring-transparent transition-all hover:ring-blue-500/20">
-                <div className="flex items-center justify-center w-full h-full bg-blue-100 text-blue-600 font-bold">
+              <button className="group relative size-9 overflow-hidden rounded-full ring-2 ring-transparent transition-all hover:ring-blue-500/20 shadow-sm border border-slate-200">
+                <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold">
                   {getInitials()}
                 </div>
               </button>
@@ -253,119 +281,157 @@ export const EmployeeDashboard: React.FC = () => {
           </div>
         </header>
 
-        {/* Scrollable Dashboard Content */}
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
-          {view === 'apply-leave' ? (
+          {view === 'attendance' ? (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900">Attendance History</h2>
+                <p className="text-sm text-slate-500 mt-1">View your check-in and check-out times.</p>
+              </div>
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <table className="min-w-full divide-y divide-slate-200">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check In</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check Out</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-slate-200">
+                    {attendance.length > 0 ? attendance.map((record) => {
+                      const checkIn = record.checkIn ? new Date(record.checkIn) : null;
+                      const checkOut = record.checkOut ? new Date(record.checkOut) : null;
+                      let duration = '---';
+                      if (checkIn && checkOut) {
+                        const diff = checkOut.getTime() - checkIn.getTime();
+                        const hours = Math.floor(diff / 3600000);
+                        const mins = Math.floor((diff % 3600000) / 60000);
+                        duration = `${hours}h ${mins}m`;
+                      }
+                      return (
+                        <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                            {new Date(record.date).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {checkIn ? checkIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {checkOut ? checkOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
+                            {duration}
+                          </td>
+                        </tr>
+                      )
+                    }) : (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">No attendance records found.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : view === 'payroll' ? (
+            <PayrollPage
+              initialWage={50000 * 12}
+              allowEdit={false}
+              employeeName={profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'Employee')}
+              employeeId={profile?.id || '---'}
+            />
+          ) : view === 'profile' ? (
+            <ProfilePage
+              profile={profile}
+              onBack={() => setView('dashboard')}
+              onSave={(updatedProfile) => {
+                if (profile) setProfile({ ...profile, ...updatedProfile as any });
+              }}
+            />
+          ) : view === 'apply-leave' ? (
             <ApplyLeave
               profile={profile}
               balances={balances}
               onCancel={() => setView('dashboard')}
               onSuccess={() => {
                 alert("Leave application submitted successfully!");
-                // Refresh Data
-                if (user as any) {
-                  // Use profile.id if available
-                  if (profile?.id) {
-                    EmployeeService.getLeaveRequests(profile.id).then(setRequests);
-                    EmployeeService.getLeaveBalances(profile.id).then(setBalances);
-                  }
+                if (profile?.id) {
+                  EmployeeService.getLeaveRequests(profile.id).then(setRequests);
+                  EmployeeService.getLeaveBalances(profile.id).then(setBalances);
                 }
                 setView('dashboard');
               }}
             />
           ) : (
             <div className="w-full">
-              {/* Page Heading */}
               <div className="mb-8 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Good Morning, {profile?.firstName || user?.displayName?.split(' ')[0] || 'Employee'} 👋</h1>
-                  <p className="text-sm text-slate-500 mt-1">Here's what's happening with you today.</p>
+                  <p className="text-sm text-slate-500 mt-1">Here's what's happening today.</p>
                 </div>
                 <div className="mt-4 flex items-center gap-3 sm:mt-0">
                   <span className="rounded-full bg-white px-4 py-1.5 text-sm font-medium text-slate-600 shadow-sm ring-1 ring-slate-900/5">
                     {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
-                  <button onClick={() => setView('apply-leave')} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition-all hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                  <button onClick={() => setView('apply-leave')} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-blue-500/30 transition-all hover:bg-blue-700">
                     <Plus size={20} />
                     Apply Leave
                   </button>
                 </div>
               </div>
 
-              {/* Dashboard Grid */}
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 xl:gap-8">
-                {/* Left Column (Main Data) */}
                 <div className="flex flex-col gap-6 lg:col-span-8">
-
-                  {/* Attendance Section - Full Width */}
-                  <div className="flex flex-col gap-6">
-
-                    {/* Clock In/Out Card */}
-                    <div className="relative overflow-hidden rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-slate-500">Current Status</p>
-                          <div className="mt-1 flex items-center gap-2">
-                            <span className="relative flex size-2.5">
-                              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${status === 'clocked-in' ? 'bg-emerald-400' : 'bg-slate-400'} opacity-75`}></span>
-                              <span className={`relative inline-flex size-2.5 rounded-full ${status === 'clocked-in' ? 'bg-emerald-500' : 'bg-slate-500'}`}></span>
-                            </span>
-                            <span className="text-lg font-bold text-slate-900 capitalize">{status.replace('-', ' ')}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-slate-400">Shift: 09:00 - 18:00</p>
-                          <p className="font-mono text-xl font-bold tracking-tight text-slate-900">
-                            {displayTime}
-                          </p>
+                  <div className="relative overflow-hidden rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-500">Current Status</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className={`size-2.5 rounded-full ${status === 'clocked-in' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                          <span className="text-lg font-bold text-slate-900 capitalize">{status.replace('-', ' ')}</span>
                         </div>
                       </div>
-
-                      {/* EDITABLE TIME SIMULATION SECTION */}
-                      <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                          <div className="flex flex-col gap-1 w-full sm:w-auto">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                              {status === 'clocked-out' ? 'Set Simulation Check-In Time' : 'Set Simulation Check-Out Time'}
-                            </label>
-                            <input
-                              type="time"
-                              value={status === 'clocked-out' ? checkInTime : checkOutTime}
-                              onChange={(e) => status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value)}
-                              className="block w-full sm:w-40 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
-                            />
-                            <p className="text-[10px] text-slate-400 mt-1">
-                              {status === 'clocked-out' ? "Select time and click 'Clock In'" : "Select time and click 'Clock Out'"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 flex gap-3">
-                        <button
-                          onClick={handleClockIn}
-                          disabled={status === 'clocked-in'}
-                          className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${status === 'clocked-in' ? 'bg-emerald-50 text-emerald-600 opacity-50 cursor-not-allowed' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
-                        >
-                          Clock In
-                        </button>
-                        <button
-                          onClick={handleClockOut}
-                          disabled={status === 'clocked-out'}
-                          className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${status === 'clocked-out' ? 'bg-rose-50 text-rose-600 opacity-50 cursor-not-allowed' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}`}
-                        >
-                          Clock Out
-                        </button>
+                      <div className="text-right">
+                        <p className="text-xs text-slate-400">Shift: 09:00 - 18:00</p>
+                        <p className="font-mono text-xl font-bold tracking-tight text-slate-900">{displayTime || '09:00 AM'}</p>
                       </div>
                     </div>
 
-                  </div> {/* Closes Attendance Section - Full Width */}
+                    <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex flex-col sm:flex-row gap-4 items-end justify-between">
+                        <div className="flex flex-col gap-1 w-full sm:w-auto">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            Set Simulation {status === 'clocked-out' ? 'Check-In' : 'Check-Out'} Time
+                          </label>
+                          <input
+                            type="time"
+                            value={status === 'clocked-out' ? checkInTime : checkOutTime}
+                            onChange={(e) => status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value)}
+                            className="block w-full sm:w-40 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
+                          />
+                        </div>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <button
+                            onClick={status === 'clocked-out' ? handleClockIn : handleClockOut}
+                            className={`flex-1 sm:px-8 rounded-lg py-2.5 text-sm font-semibold transition-all ${status === 'clocked-out' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-rose-600 text-white hover:bg-rose-700'}`}
+                          >
+                            {status === 'clocked-out' ? 'Clock In' : 'Clock Out'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                  {/* Leave Balances */}
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                     <div className="mb-5 flex items-center justify-between">
                       <h3 className="text-base font-semibold text-slate-900">Leave Balance</h3>
-                      <a className="text-sm font-medium text-blue-600 hover:text-blue-700" href="#">View Details</a>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       {[
@@ -382,107 +448,120 @@ export const EmployeeDashboard: React.FC = () => {
                             <span className="text-2xl font-bold text-slate-900">{leave.data.taken.toString().padStart(2, '0')}</span>
                             <span className="text-sm text-slate-500">/ {leave.data.total} days</span>
                           </div>
-                          <div className="mt-3 h-1.5 w-full rounded-full bg-slate-200">
-                            <div className={`h-1.5 rounded-full ${leave.color}`} style={{ width: `${(leave.data.taken / leave.data.total) * 100}%` }}></div>
-                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Pending Requests Table */}
-                  <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-900/5">
+                  <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-900/5 overflow-hidden">
                     <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                      <h3 className="text-base font-semibold text-slate-900">Pending Requests</h3>
+                      <h3 className="text-base font-semibold text-slate-900">Request Status</h3>
+                      <button onClick={() => setView('apply-leave')} className="text-xs font-medium text-blue-600 hover:text-blue-700">View History</button>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-left text-sm">
                         <thead className="bg-slate-50 text-slate-500">
                           <tr>
-                            <th className="px-6 py-3 font-medium">Request Type</th>
+                            <th className="px-6 py-3 font-medium">Type</th>
                             <th className="px-6 py-3 font-medium">Dates</th>
-                            <th className="px-6 py-3 font-medium">Applied On</th>
                             <th className="px-6 py-3 font-medium">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {requests.length > 0 ? requests.map((req) => (
+                          {requests.slice(0, 5).map((req) => (
                             <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-6 py-4 text-slate-900 font-medium capitalize">{req.type} Leave</td>
+                              <td className="px-6 py-4 text-slate-900 font-medium capitalize">{req.type}</td>
                               <td className="px-6 py-4 text-slate-500">{req.startDate} to {req.endDate}</td>
-                              <td className="px-6 py-4 text-slate-500">
-                                {req.reviewedAt ? new Date(req.reviewedAt).toLocaleDateString() : 'Just Now'}
-                              </td>
                               <td className="px-6 py-4">
-                                <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20 capitalize">{req.status}</span>
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${req.status === 'approved' ? 'bg-green-100 text-green-700' : req.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                  {req.status}
+                                </span>
                               </td>
                             </tr>
-                          )) : (
-                            <tr><td colSpan={4} className="p-6 text-center text-slate-500">No pending requests</td></tr>
+                          ))}
+                          {requests.length === 0 && (
+                            <tr><td colSpan={3} className="p-6 text-center text-slate-500">No requests found</td></tr>
                           )}
                         </tbody>
                       </table>
                     </div>
-                    <div className="border-t border-slate-100 bg-slate-50 px-6 py-3 text-center">
-                      <button className="text-xs font-medium text-blue-600 hover:text-blue-700">View All History</button>
-                    </div>
                   </div>
                 </div>
 
-                {/* Right Column (Sidebar Widgets) */}
                 <div className="flex flex-col gap-6 lg:col-span-4">
-                  {/* Profile Summary Card */}
                   <div className="flex flex-col gap-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center size-16 rounded-full bg-slate-200 text-slate-500 text-2xl font-bold">
+                      <div className="flex items-center justify-center size-16 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-2xl font-bold shadow-sm">
                         {getInitials()}
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-slate-900">
-                          {profile?.firstName ? `${profile.firstName} ${profile.lastName}` : (user?.displayName || 'User')}
-                        </h3>
+                        <h3 className="text-lg font-bold text-slate-900">{profile?.firstName} {profile?.lastName}</h3>
                         <p className="text-sm text-slate-500">ID: {profile?.id || '---'}</p>
                         <span className="mt-1 inline-flex items-center gap-1.5 rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                          <span className="size-1.5 rounded-full bg-emerald-500"></span> Active
+                          <span className="size-1.5 rounded-full bg-emerald-500" /> Active
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-4">
-                      <div className="text-center px-2">
-                        <p className="text-xs text-slate-500 uppercase tracking-wide">Department</p>
-                        <p className="mt-0.5 text-sm font-semibold text-slate-900">{profile?.department || '---'}</p>
+                    <div className="grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-4 text-center">
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase">Department</p>
+                        <p className="text-sm font-semibold">{profile?.department || '---'}</p>
                       </div>
-                      <div className="text-center px-2">
-                        <p className="text-xs text-slate-500 uppercase tracking-wide">Designation</p>
-                        <p className="mt-0.5 text-sm font-semibold text-slate-900">{profile?.designation || '---'}</p>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase">Designation</p>
+                        <p className="text-sm font-semibold">{profile?.designation || '---'}</p>
                       </div>
                     </div>
-                    <button className="w-full rounded-lg bg-slate-100 py-2 text-sm font-medium text-slate-900 hover:bg-slate-200 transition-colors">
+                    <button onClick={() => setView('profile')} className="w-full rounded-lg bg-slate-100 py-2 text-sm font-medium hover:bg-slate-200 transition-colors">
                       View Full Profile
                     </button>
                   </div>
 
-                  {/* Alerts / Holidays */}
                   <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 shadow-md text-white">
                     <div className="flex items-start gap-4">
-                      <div className="rounded-lg bg-white/20 p-2 backdrop-blur-sm">
-                        <PartyPopper className="text-white" size={24} />
-                      </div>
+                      <div className="rounded-lg bg-white/20 p-2"><PartyPopper size={24} /></div>
                       <div>
-                        <h3 className="font-semibold text-white">Upcoming Holiday</h3>
-                        <p className="mt-1 text-sm text-blue-100">Makar Sankranti</p>
+                        <h3 className="font-semibold">Upcoming Holiday</h3>
+                        <p className="text-sm text-blue-100 mt-1">Makar Sankranti</p>
                         <div className="mt-3 flex items-center gap-2 text-sm font-medium">
-                          <CalendarDays size={18} />
-                          Jan 14, 2026 - Jan 15, 2026
+                          <CalendarDays size={18} /> Jan 14, 2026
                         </div>
                       </div>
                     </div>
                   </div>
 
+                  <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
+                    <h3 className="text-base font-semibold text-slate-900 mb-6 font-display">Recent Activity</h3>
+                    <div className="flow-root">
+                      <ul role="list" className="-mb-8">
+                        {(() => {
+                          const acts = [
+                            ...attendance.flatMap(a => {
+                              const arr = [];
+                              if (a.checkIn) arr.push({ time: a.checkIn, label: 'Clocked In', color: 'bg-emerald-500' });
+                              if (a.checkOut) arr.push({ time: a.checkOut, label: 'Clocked Out', color: 'bg-rose-500' });
+                              return arr;
+                            }),
+                            ...requests.map(r => ({ time: r.appliedAt || r.startDate, label: `Applied for ${r.type}`, color: 'bg-blue-500' }))
+                          ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
 
-                  {/* Activity Timeline REMOVED */}
+                          return acts.map((act, i) => (
+                            <li key={i} className="relative pb-8">
+                              {i !== acts.length - 1 && <span className="absolute left-1.5 top-1.5 -ml-px h-full w-0.5 bg-slate-100" />}
+                              <div className="relative flex items-start gap-3">
+                                <div className={`mt-1.5 size-3 rounded-full ${act.color} ring-4 ring-white shrink-0`} />
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">{act.label}</p>
+                                  <p className="text-xs text-slate-500 mt-1">{new Date(act.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                                </div>
+                              </div>
+                            </li>
+                          ));
+                        })()}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
-
               </div>
             </div>
           )}
@@ -491,4 +570,3 @@ export const EmployeeDashboard: React.FC = () => {
     </div>
   );
 };
-
