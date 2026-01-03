@@ -15,7 +15,6 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: {
       yearOfJoining: new Date().getFullYear(),
-      companyCode: 'OI'
     }
   });
 
@@ -125,6 +124,12 @@ export const CreateEmployeeModal: React.FC<CreateEmployeeModalProps> = ({ onClos
                   <label className="text-sm font-medium text-gray-700">Designation</label>
                   <input {...register('designation')} placeholder="e.g. Senior Developer" className="input-field" />
                   {errors.designation && <p className="error-text">{errors.designation.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Employee ID</label>
+                  <input {...register('companyCode')} placeholder="e.g. EMP001" className="input-field" />
+                  {errors.companyCode && <p className="error-text">{errors.companyCode.message}</p>}
                 </div>
 
                 <div className="space-y-2">

@@ -13,7 +13,7 @@ export const createEmployeeSchema = z.object({
   department: z.string().min(1, 'Department is required'),
   designation: z.string().min(1, 'Designation is required'), // Role/Designation matches prompt
   yearOfJoining: z.number().int().min(2000).max(new Date().getFullYear()),
-  companyCode: z.string().default('OD'), // Hardcoded for this company "Odoo India" -> OD? User said "OI" in example "OIJODO...", wait "OI" -> Odoo India. I'll use "OD" or "OI" as config. Prompt says "OIJODO... OI -> Company Name". I will use 'OI'.
+  companyCode: z.string().min(1, 'Employee ID is required'),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
