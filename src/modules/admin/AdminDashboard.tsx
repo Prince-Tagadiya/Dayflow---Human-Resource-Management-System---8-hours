@@ -158,12 +158,7 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setActiveTab('leaves')}
               badge={stats.pendingLeaves > 0 ? stats.pendingLeaves : undefined}
             />
-            <SidebarItem
-              icon={<Banknote size={20} />}
-              label="Payroll"
-              isActive={activeTab === 'payroll'}
-              onClick={() => setActiveTab('payroll')}
-            />
+
           </nav>
         </div>
 
