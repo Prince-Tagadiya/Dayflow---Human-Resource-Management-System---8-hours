@@ -59,6 +59,7 @@ export interface TimeOffRequest {
   status: 'pending' | 'approved' | 'rejected';
   approverId?: string; // Admin UID
   reviewedAt?: string;
+  appliedAt?: string;
   adminComments?: string;
 }
 
