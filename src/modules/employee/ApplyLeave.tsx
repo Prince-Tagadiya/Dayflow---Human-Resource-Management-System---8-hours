@@ -116,7 +116,7 @@ export const ApplyLeave: React.FC<ApplyLeaveProps> = ({ profile, onCancel, onSuc
                     <option value="privilege">Privilege Leave (Paid)</option>
                     <option value="unpaid">Unpaid Leave</option>
                   </select>
-                  <p className="mt-1.5 text-xs text-slate-500">Selecting 'Sick Leave' requires a medical certificate upload.</p>
+                  <p className="mt-1.5 text-xs text-slate-500">Sick leaves exceeding 2 consecutive days may require a medical certificate based on company policy.</p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-3 items-start">
@@ -174,21 +174,7 @@ export const ApplyLeave: React.FC<ApplyLeaveProps> = ({ profile, onCancel, onSuc
                   </div>
                 </div>
 
-                {/* Upload Section */}
-                <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="mb-3 rounded-full bg-blue-50 p-2">
-                      <CloudUpload className="text-blue-600" size={24} />
-                    </div>
-                    <h4 className="text-sm font-medium text-slate-900">Upload Medical Certificate</h4>
-                    <p className="mt-1 text-xs text-slate-500">Required for Sick Leave. Max file size: 5MB.</p>
-                    <label htmlFor="file-upload" className="mt-4 cursor-pointer rounded-md bg-white px-3 py-2 text-sm font-semibold text-blue-600 shadow-sm ring-1 ring-slate-300 hover:bg-slate-50 transition-all">
-                      <span>Select File</span>
-                      <input id="file-upload" name="file-upload" type="file" className="sr-only" accept=".pdf,.jpg,.jpeg,.png" />
-                    </label>
-                    <p className="mt-2 text-xs text-slate-400">Supported formats: PDF, JPG, PNG</p>
-                  </div>
-                </div>
+
 
                 {/* Submit Actions */}
                 <div className="flex items-center gap-3 pt-6 border-t border-slate-100">
