@@ -66,6 +66,9 @@ export const AdminDashboard: React.FC = () => {
       if (activeTab === 'employees') {
         const data = await AdminService.getAllEmployees();
         setEmployees(data as EmployeeProfile[]);
+        const today = new Date().toISOString().split('T')[0];
+        const todayAtt = await AdminService.getAllAttendance(today);
+        setAttendance(todayAtt as AttendanceRecord[]);
       } else if (activeTab === 'attendance') {
         const data = await AdminService.getAllAttendance();
         setAttendance(data as AttendanceRecord[]);
@@ -245,6 +248,7 @@ export const AdminDashboard: React.FC = () => {
                 {activeTab === 'employees' ? (
                   <EmployeeDirectoryView
                     employees={employees}
+                    attendance={attendance}
                     onAddEmployee={() => setShowCreateModal(true)}
                   />
                 ) : activeTab === 'attendance' ? (

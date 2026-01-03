@@ -14,6 +14,7 @@ import type { EmployeeProfile, TimeOffRequest, AttendanceRecord } from '../../ty
 import { ApplyLeave } from './ApplyLeave';
 import { ProfilePage } from './ProfilePage';
 import { PayrollPage } from '../payroll/PayrollPage';
+import { AttendanceHistory } from './AttendanceHistory';
 
 export const EmployeeDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -36,9 +37,16 @@ export const EmployeeDashboard: React.FC = () => {
 
   // State for Check-In/Out Simulation
   const [status, setStatus] = useState<'clocked-in' | 'clocked-out'>('clocked-out');
-  const [checkInTime, setCheckInTime] = useState<string>('09:00'); // Default simulated time
-  const [checkOutTime, setCheckOutTime] = useState<string>('18:00'); // Default simulated time
-  const [displayTime, setDisplayTime] = useState<string>(''); // Current display time
+
+  // Helper to get local ISO string for datetime-local
+  const getLocalISOString = (date: Date) => {
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const [checkInTime, setCheckInTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(9, 0, 0, 0))));
+  const [checkOutTime, setCheckOutTime] = useState<string>(getLocalISOString(new Date(new Date().setHours(18, 0, 0, 0))));
+  const [displayTime, setDisplayTime] = useState<string>('---');
 
   useEffect(() => {
     let unsubscribeLeaves: (() => void) | undefined;
@@ -55,36 +63,34 @@ export const EmployeeDashboard: React.FC = () => {
             const b = await EmployeeService.getLeaveBalances(p.id);
             setBalances(b);
 
-            // 2. Real-time Leaves (Using subscribe pattern if available, or fallback to polling/fetch)
-            if ((EmployeeService as any).subscribeToLeaveRequests) {
-              unsubscribeLeaves = (EmployeeService as any).subscribeToLeaveRequests(p.id, (l: TimeOffRequest[]) => {
-                setRequests(l);
-                EmployeeService.getLeaveBalances(p.id).then(setBalances);
-              });
-            } else {
-              const l = await EmployeeService.getLeaveRequests(p.id);
+            // 2. Real-time Leaves
+            unsubscribeLeaves = EmployeeService.subscribeToLeaveRequests(p.id, (l: TimeOffRequest[]) => {
               setRequests(l);
-            }
+              EmployeeService.getLeaveBalances(p.id).then(setBalances);
+            });
 
-            // 3. Real-time Attendance (Update status based on today)
-            const todayAtt = await EmployeeService.getTodayAttendance(p.id);
-            if (todayAtt) {
-              if (todayAtt.checkOut) {
-                setStatus('clocked-out');
-                const date = new Date(todayAtt.checkOut);
-                setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+            // 3. Real-time Attendance
+            unsubscribeAttendance = EmployeeService.subscribeToAttendance(p.id, (a: AttendanceRecord[]) => {
+              setAttendance(a);
+              // Update status based on latest attendance
+              const today = new Date().toISOString().split('T')[0];
+              const todayRecord = a.find(rec => rec.date === today);
+              if (todayRecord) {
+                if (todayRecord.checkIn && !todayRecord.checkOut) {
+                  setStatus('clocked-in');
+                  setDisplayTime(new Date(todayRecord.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+                } else if (todayRecord.checkIn && todayRecord.checkOut) {
+                  setStatus('clocked-out');
+                  setDisplayTime(new Date(todayRecord.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+                } else {
+                  setStatus('clocked-out');
+                  setDisplayTime('---');
+                }
               } else {
-                setStatus('clocked-in');
-                const date = new Date(todayAtt.checkIn!);
-                setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
+                setStatus('clocked-out');
+                setDisplayTime('---');
               }
-            } else {
-              setStatus('clocked-out');
-            }
-
-            // Sync full history for table
-            const history = await EmployeeService.getAttendanceHistory(p.id);
-            setAttendance(history);
+            });
           }
         } catch (e) {
           console.error("Failed to load employee data", e);
@@ -98,22 +104,6 @@ export const EmployeeDashboard: React.FC = () => {
     };
   }, [user]);
 
-  // Update clock every minute for display if not overriding
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      if (status === 'clocked-out' && !displayTime.includes(':')) {
-        // Only auto-update if we don't have a fixed display time from a clock-in/out event
-      }
-      // If we want real-time clock when clocked out:
-      if (status === 'clocked-out' && view === 'dashboard') {
-        // Optional: Update displayTime to current real time
-        // setDisplayTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
-      }
-    }, 60000);
-    return () => clearInterval(timer);
-  }, [status, view, displayTime]);
-
   const handleLogout = async () => {
     await AuthService.logout();
     navigate('/login');
@@ -124,16 +114,7 @@ export const EmployeeDashboard: React.FC = () => {
     try {
       await EmployeeService.clockIn(profile.id, checkInTime);
       setStatus('clocked-in');
-
-      const [hours, minutes] = checkInTime.split(':');
-      const date = new Date();
-      date.setHours(parseInt(hours));
-      date.setMinutes(parseInt(minutes));
-      setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
-
-      // Refresh data
-      const history = await EmployeeService.getAttendanceHistory(profile.id);
-      setAttendance(history);
+      setDisplayTime(new Date(checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
     } catch (e) {
       alert("Failed to clock in");
     }
@@ -144,16 +125,7 @@ export const EmployeeDashboard: React.FC = () => {
     try {
       await EmployeeService.clockOut(profile.id, checkOutTime);
       setStatus('clocked-out');
-
-      const [hours, minutes] = checkOutTime.split(':');
-      const date = new Date();
-      date.setHours(parseInt(hours));
-      date.setMinutes(parseInt(minutes));
-      setDisplayTime(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
-
-      // Refresh data
-      const history = await EmployeeService.getAttendanceHistory(profile.id);
-      setAttendance(history);
+      setDisplayTime(new Date(checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }));
     } catch (e) {
       alert("Failed to clock out");
     }
@@ -283,63 +255,7 @@ export const EmployeeDashboard: React.FC = () => {
 
         <main className="flex-1 overflow-y-auto bg-[#f6f6f8] p-4 sm:p-6 lg:p-8">
           {view === 'attendance' ? (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight text-slate-900">Attendance History</h2>
-                <p className="text-sm text-slate-500 mt-1">View your check-in and check-out times.</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check In</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Check Out</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hours</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-slate-200">
-                    {attendance.length > 0 ? attendance.map((record) => {
-                      const checkIn = record.checkIn ? new Date(record.checkIn) : null;
-                      const checkOut = record.checkOut ? new Date(record.checkOut) : null;
-                      let duration = '---';
-                      if (checkIn && checkOut) {
-                        const diff = checkOut.getTime() - checkIn.getTime();
-                        const hours = Math.floor(diff / 3600000);
-                        const mins = Math.floor((diff % 3600000) / 60000);
-                        duration = `${hours}h ${mins}m`;
-                      }
-                      return (
-                        <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                            {new Date(record.date).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${record.status === 'present' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                              {record.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                            {checkIn ? checkIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                            {checkOut ? checkOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '---'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">
-                            {duration}
-                          </td>
-                        </tr>
-                      )
-                    }) : (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-slate-500">No attendance records found.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <AttendanceHistory employeeId={profile?.id || ''} />
           ) : view === 'payroll' ? (
             <PayrollPage
               initialWage={50000 * 12}
@@ -362,10 +278,6 @@ export const EmployeeDashboard: React.FC = () => {
               onCancel={() => setView('dashboard')}
               onSuccess={() => {
                 alert("Leave application submitted successfully!");
-                if (profile?.id) {
-                  EmployeeService.getLeaveRequests(profile.id).then(setRequests);
-                  EmployeeService.getLeaveBalances(profile.id).then(setBalances);
-                }
                 setView('dashboard');
               }}
             />
@@ -389,6 +301,7 @@ export const EmployeeDashboard: React.FC = () => {
 
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 xl:gap-8">
                 <div className="flex flex-col gap-6 lg:col-span-8">
+                  {/* Attendance Card */}
                   <div className="relative overflow-hidden rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                     <div className="flex items-center justify-between">
                       <div>
@@ -400,7 +313,7 @@ export const EmployeeDashboard: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-slate-400">Shift: 09:00 - 18:00</p>
-                        <p className="font-mono text-xl font-bold tracking-tight text-slate-900">{displayTime || '09:00 AM'}</p>
+                        <p className="font-mono text-xl font-bold tracking-tight text-slate-900">{displayTime}</p>
                       </div>
                     </div>
 
@@ -411,16 +324,16 @@ export const EmployeeDashboard: React.FC = () => {
                             Set Simulation {status === 'clocked-out' ? 'Check-In' : 'Check-Out'} Time
                           </label>
                           <input
-                            type="time"
+                            type="datetime-local"
                             value={status === 'clocked-out' ? checkInTime : checkOutTime}
                             onChange={(e) => status === 'clocked-out' ? setCheckInTime(e.target.value) : setCheckOutTime(e.target.value)}
-                            className="block w-full sm:w-40 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
+                            className="block w-full sm:w-64 rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg font-mono"
                           />
                         </div>
                         <div className="flex gap-2 w-full sm:w-auto">
                           <button
                             onClick={status === 'clocked-out' ? handleClockIn : handleClockOut}
-                            className={`flex-1 sm:px-8 rounded-lg py-2.5 text-sm font-semibold transition-all ${status === 'clocked-out' ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-rose-600 text-white hover:bg-rose-700'}`}
+                            className={`flex-1 sm:px-8 rounded-lg py-2.5 text-sm font-semibold transition-all shadow-sm ${status === 'clocked-out' ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-rose-200'}`}
                           >
                             {status === 'clocked-out' ? 'Clock In' : 'Clock Out'}
                           </button>
@@ -431,7 +344,7 @@ export const EmployeeDashboard: React.FC = () => {
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
                     <div className="mb-5 flex items-center justify-between">
-                      <h3 className="text-base font-semibold text-slate-900">Leave Balance</h3>
+                      <h3 className="text-base font-semibold text-slate-900 font-display uppercase tracking-wide">Leave Balance</h3>
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                       {[
@@ -531,7 +444,7 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
 
                   <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-900/5">
-                    <h3 className="text-base font-semibold text-slate-900 mb-6 font-display">Recent Activity</h3>
+                    <h3 className="text-base font-semibold text-slate-900 mb-6 uppercase tracking-wider text-xs text-slate-400">Recent Activity</h3>
                     <div className="flow-root">
                       <ul role="list" className="-mb-8">
                         {(() => {
