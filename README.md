@@ -71,7 +71,7 @@
 | Feature | Description |
 |---------|-------------|
 | 🔑 **Dual Login** | Login via Email or Employee ID |
-| 🆔 **Smart ID Generation** | Format: `OI` + `Name(4)` + `Year` + `Serial` → `OIPRSH20240001` |
+| 🆔 **Smart ID Generation** | Format: `OI` + `First_Name(2)` + `Last_Name(2)` + `Year` + `Serial` → `OIPRSH20240001` |
 | 🛡️ **RBAC** | Strict role-based access (Admin/Employee) |
 | 🔒 **Firestore Rules** | Server-side security enforcement |
 | ✉️ **Email Activation** | Self-service account activation flow |
